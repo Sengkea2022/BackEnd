@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/test', function () {
     return response()->json([
         'message' => 'Backend API is connected.',
-        'status' => 'ok',
+        'status' => 'ok test',
     ]);
 });
 
