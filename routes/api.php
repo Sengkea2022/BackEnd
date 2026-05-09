@@ -21,7 +21,7 @@ Route::options('/{any}', function () {
 
 // ✅ All other routes here
 Route::middleware('api')->group(function () {
-    Route::post('/auth/login', [AuthController::class, 'login']);
+    // Route::post('/auth/login', [AuthController::class, 'login']);
     // ... rest of your routes
 });
 
