@@ -2,6 +2,9 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
+use App\Models\User;
+use Laravel\Sanctum\PersonalAccessToken;
 
 Route::prefix('auth')->group(function () {
 
@@ -12,7 +15,7 @@ Route::prefix('auth')->group(function () {
             'password' => 'required|min:6|confirmed',
         ]);
 
-        $user = \App\Models\User::create([
+        $user = User::create([
             'name'     => $request->name,
             'email'    => $request->email,
             'password' => bcrypt($request->password),
@@ -35,8 +38,14 @@ Route::prefix('auth')->group(function () {
     });
 
     Route::middleware('auth:sanctum')->post('/logout', function (Request $request) {
-        $request->user()->currentAccessToken()->delete();
+        $token = $request->user()?->currentAccessToken();
+
+        if ($token instanceof PersonalAccessToken) {
+            $token->delete();
+        }
+
         return response()->json(['message' => 'Logged out']);
     });
+    
 
 });

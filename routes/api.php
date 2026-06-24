@@ -2,7 +2,6 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\AuthController;
 
 Route::get('/test', function () {
     return response()->json([
@@ -21,8 +20,9 @@ Route::options('/{any}', function () {
 
 // ✅ All other routes here
 Route::middleware('api')->group(function () {
-    // Route::post('/auth/login', [AuthController::class, 'login']);
-    // ... rest of your routes
+    Route::middleware('auth:sanctum')->get('/auth/me', function (Request $request) {
+        return response()->json(['user' => $request->user()]);
+    });
 });
 
 require __DIR__.'/api/auth.php';
