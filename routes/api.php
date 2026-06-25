@@ -1,6 +1,6 @@
 <?php
 
-use Illuminate\Http\Request;
+use App\Http\Controllers\Api\AuthController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/test', function () {
@@ -18,12 +18,25 @@ Route::options('/{any}', function () {
         ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 })->where('any', '.*');
 
-// ✅ All other routes here
-Route::middleware('api')->group(function () {
-    Route::middleware('auth:sanctum')->get('/auth/me', function (Request $request) {
-        return response()->json(['user' => $request->user()]);
-    });
-});
-
 require __DIR__.'/api/auth.php';
-require __DIR__.'/api/user.php';
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/auth/me', [AuthController::class, 'me']);
+    Route::post('/auth/logout', [AuthController::class, 'logout']);
+
+    require __DIR__.'/api/user.php';
+    require __DIR__.'/api/currencies.php';
+    require __DIR__.'/api/exchange_rates.php';
+    require __DIR__.'/api/stores.php';
+    require __DIR__.'/api/guest_links.php';
+    require __DIR__.'/api/categories.php';
+    require __DIR__.'/api/products.php';
+    require __DIR__.'/api/prices.php';
+    require __DIR__.'/api/stocks.php';
+    require __DIR__.'/api/customers.php';
+    require __DIR__.'/api/orders.php';
+    require __DIR__.'/api/order_items.php';
+    require __DIR__.'/api/transactions.php';
+    require __DIR__.'/api/profits.php';
+    require __DIR__.'/api/notifications.php';
+});
