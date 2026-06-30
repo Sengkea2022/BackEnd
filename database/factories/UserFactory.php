@@ -5,6 +5,7 @@ namespace Database\Factories;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use App\Enums\Positions;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
@@ -29,6 +30,14 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'uuid' => (string) Str::uuid(),
+            'user_no' => (string) fake()->unique()->numerify('#####'),
+            'phone' => fake()->unique()->phoneNumber(),
+            'date_of_birth' => fake()->date(),
+            'store_no' => 'STORE-' . fake()->numberBetween(100, 999),
+            'position' => fake()->randomElement(Positions::cases()),
+            'google_id' => null,
+            'avatar' => null,
         ];
     }
 

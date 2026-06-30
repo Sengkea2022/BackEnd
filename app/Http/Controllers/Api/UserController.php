@@ -11,8 +11,13 @@ class UserController extends Controller
 {
     public function showCurrent(Request $request): JsonResponse
     {
+        $user = $request->user();
+        if ($user) {
+            $user->load('role.permissions');
+        }
+
         return response()->json([
-            'user' => $request->user(),
+            'user' => $user,
         ]);
     }
 
@@ -23,12 +28,17 @@ class UserController extends Controller
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
             'email' => ['sometimes', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user?->id)],
+            'department' => ['sometimes', 'nullable', 'string', 'max:255'],
         ]);
 
         $user?->update($validated);
 
+        if ($user) {
+            $user->load('role.permissions');
+        }
+
         return response()->json([
-            'user' => $user?->fresh(),
+            'user' => $user,
         ]);
     }
 }

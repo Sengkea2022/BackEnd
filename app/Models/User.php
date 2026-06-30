@@ -8,11 +8,16 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
+use App\Enums\Positions;
+use App\Enums\UserActiveStatus;
+use App\Enums\UserPaidStatus;
+
+
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens;
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -25,6 +30,16 @@ class User extends Authenticatable
         'password',
         'uuid',
         'user_no',
+        'phone',
+        'date_of_birth',
+        'store_no',
+        'position',
+        'active_status',
+        'paid_status',
+        'google_id',
+        'avatar',
+        'department',
+        'role_id',
     ];
 
     /**
@@ -35,6 +50,8 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_recovery_codes',
+        'two_factor_secret',
     ];
 
     /**
@@ -47,6 +64,12 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'date_of_birth' => 'date',
+            'two_factor_confirmed_at' => 'datetime',
+            'active_status' => UserActiveStatus::class,
+            'paid_status' => UserPaidStatus::class,
+            'position' => Positions::class,
+
         ];
     }
 
@@ -65,5 +88,29 @@ class User extends Authenticatable
                 $user->user_no = (string) (((int) ($latestUserNo ?? 0)) + 1);
             }
         });
+    }
+
+    /**
+     * The role that belongs to the user.
+     */
+    public function role(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Role::class);
+    }
+
+    /**
+     * Check if the user has a specific role.
+     */
+    public function hasRole(string $roleSlug): bool
+    {
+        return $this->role?->slug === $roleSlug;
+    }
+
+    /**
+     * Check if the user has a specific permission.
+     */
+    public function hasPermission(string $permissionSlug): bool
+    {
+        return $this->role?->permissions->contains('slug', $permissionSlug) ?? false;
     }
 }

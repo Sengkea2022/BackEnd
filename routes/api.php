@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Api\AuthController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/test', function () {
@@ -21,8 +20,6 @@ Route::options('/{any}', function () {
 require __DIR__.'/api/auth.php';
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/auth/me', [AuthController::class, 'me']);
-    Route::post('/auth/logout', [AuthController::class, 'logout']);
 
     require __DIR__.'/api/user.php';
     require __DIR__.'/api/currencies.php';

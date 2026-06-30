@@ -13,16 +13,28 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-
-            // optional: public UUID (safe for APIs)
             $table->uuid('uuid')->unique();
-
+            $table->string('user_no')->unique();
             $table->string('name');
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
+            $table->string('phone')->unique();
+            $table->date('date_of_birth');
+
+            // Google Auth Fields
+            $table->string('password')->nullable(); // Make password nullable
+            $table->string('google_id')->nullable()->unique();
+            $table->string('avatar')->nullable(); // Optional: to store Google profile picture
+
+            $table->text('two_factor_secret')->nullable();
+            $table->text('two_factor_recovery_codes')->nullable();
+            $table->timestamp('two_factor_confirmed_at')->nullable();
             $table->rememberToken();
             $table->timestamps();
+            $table->string('store_no');
+            $table->string('position');
+            $table->string('department')->nullable();
+            $table->string('status')->default('active');
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
