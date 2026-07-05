@@ -91,7 +91,7 @@ class AuthController extends Controller
      */
     public function redirectToGoogle(): JsonResponse
     {
-        $url = Socialite::driver('google')->redirect()->getTargetUrl();
+        $url = Socialite::driver('google')->stateless()->redirect()->getTargetUrl();
         
         return response()->json([
             'url' => $url,
@@ -101,25 +101,22 @@ class AuthController extends Controller
     /**
      * Obtain the user information from Google.
      */
-    public function handleGoogleCallback(): JsonResponse
+    public function handleGoogleCallback(): \Symfony\Component\HttpFoundation\Response
     {
         try {
-            $googleUser = Socialite::driver('google')->user();
+            $googleUser = Socialite::driver('google')->stateless()->user();
             
             $user = $this->findOrCreateUser($googleUser);
             $user->load('role.permissions');
             
             $token = $user->createToken('auth_token')->plainTextToken;
             
-            return response()->json([
-                'token' => $token,
-                'user' => $user,
-            ]);
+            $frontendUrl = env('FRONTEND_URL', 'http://localhost:3000');
+            
+            return redirect($frontendUrl . '/guest/login?token=' . urlencode($token) . '&user=' . urlencode(json_encode($user)));
         } catch (Exception $e) {
-            return response()->json([
-                'message' => 'Google authentication failed',
-                'error' => $e->getMessage(),
-            ], 422);
+            $frontendUrl = env('FRONTEND_URL', 'http://localhost:3000');
+            return redirect($frontendUrl . '/guest/login?error=' . urlencode('Google authentication failed: ' . $e->getMessage()));
         }
     }
 
@@ -173,16 +170,20 @@ class AuthController extends Controller
             return $user;
         }
 
+        $staffRole = \App\Models\Role::query()->where('slug', 'staff')->first();
+
         return User::query()->create([
             'name' => $googleUser->getName() ?? $googleUser->getNickname() ?? 'Google User',
             'email' => $googleUser->getEmail(),
             'google_id' => $googleUser->getId(),
             'avatar' => $googleUser->getAvatar(),
             'password' => null,
-            'phone' => 'N/A',
+            'phone' => '0' . substr($googleUser->getId(), -10),
             'date_of_birth' => '2000-01-01',
             'store_no' => 'N/A',
-            'position' => 'Customer',
+            'position' => \App\Enums\Positions::CASHIER,
+            'role_id' => $staffRole?->id,
+            'department' => 'Sales',
         ]);
     }
 }
