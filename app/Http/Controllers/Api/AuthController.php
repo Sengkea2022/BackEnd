@@ -30,12 +30,19 @@ class AuthController extends Controller
             'password' => Hash::make($validated['password']),
         ]);
 
-        $user->load('role.permissions');
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $otpCode = (string) rand(100000, 999999);
+
+        $user->update([
+            'otp_code' => $otpCode,
+            'otp_expires_at' => now()->addMinutes(10),
+        ]);
+
+        \Illuminate\Support\Facades\Log::info("OTP Code for {$user->email}: {$otpCode}");
+        Mail::to($user->email)->send(new SendOtpMail($otpCode));
 
         return response()->json([
-            'token' => $token,
-            'user' => $user,
+            'requires_otp' => true,
+            'email' => $user->email,
         ], 201);
     }
 
@@ -54,12 +61,20 @@ class AuthController extends Controller
 
         /** @var User $user */
         $user = Auth::user();
-        $user->load('role.permissions');
-        $token = $user->createToken('auth_token')->plainTextToken;
-        
+
+        $otpCode = (string) rand(100000, 999999);
+
+        $user->update([
+            'otp_code' => $otpCode,
+            'otp_expires_at' => now()->addMinutes(10),
+        ]);
+
+        \Illuminate\Support\Facades\Log::info("OTP Code for {$user->email}: {$otpCode}");
+        Mail::to($user->email)->send(new SendOtpMail($otpCode));
+
         return response()->json([
-            'token' => $token,
-            'user' => $user,
+            'requires_otp' => true,
+            'email' => $user->email,
         ]);
     }
 
@@ -117,6 +132,7 @@ class AuthController extends Controller
                 'otp_expires_at' => now()->addMinutes(10),
             ]);
             
+            \Illuminate\Support\Facades\Log::info("OTP Code for {$user->email}: {$otpCode}");
             Mail::to($user->email)->send(new SendOtpMail($otpCode));
             
             $frontendUrl = env('FRONTEND_URL', 'http://localhost:3000');
@@ -250,6 +266,7 @@ class AuthController extends Controller
             'otp_expires_at' => now()->addMinutes(10),
         ]);
 
+        \Illuminate\Support\Facades\Log::info("OTP Code for {$user->email}: {$otpCode}");
         Mail::to($user->email)->send(new SendOtpMail($otpCode));
 
         return response()->json([
