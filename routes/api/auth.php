@@ -14,6 +14,8 @@ Route::prefix('auth')->group(function () {
     Route::get('/google/redirect', [AuthController::class, 'redirectToGoogle']);
     Route::get('/google/callback', [AuthController::class, 'handleGoogleCallback']);
     Route::post('/google/login', [AuthController::class, 'googleLogin']);
+    Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
+    Route::post('/resend-otp', [AuthController::class, 'resendOtp']);
 
 
 

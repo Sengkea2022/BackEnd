@@ -40,6 +40,8 @@ class User extends Authenticatable
         'avatar',
         'department',
         'role_id',
+        'otp_code',
+        'otp_expires_at',
     ];
 
     /**
@@ -69,7 +71,7 @@ class User extends Authenticatable
             'active_status' => UserActiveStatus::class,
             'paid_status' => UserPaidStatus::class,
             'position' => Positions::class,
-
+            'otp_expires_at' => 'datetime',
         ];
     }
 

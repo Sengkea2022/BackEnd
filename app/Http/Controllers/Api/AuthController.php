@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\PersonalAccessToken;
 use Laravel\Socialite\Facades\Socialite;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\SendOtpMail;
 use Exception;
 
 class AuthController extends Controller
@@ -107,13 +109,19 @@ class AuthController extends Controller
             $googleUser = Socialite::driver('google')->stateless()->user();
             
             $user = $this->findOrCreateUser($googleUser);
-            $user->load('role.permissions');
             
-            $token = $user->createToken('auth_token')->plainTextToken;
+            $otpCode = (string) rand(100000, 999999);
+            
+            $user->update([
+                'otp_code' => $otpCode,
+                'otp_expires_at' => now()->addMinutes(10),
+            ]);
+            
+            Mail::to($user->email)->send(new SendOtpMail($otpCode));
             
             $frontendUrl = env('FRONTEND_URL', 'http://localhost:3000');
             
-            return redirect($frontendUrl . '/guest/login?token=' . urlencode($token) . '&user=' . urlencode(json_encode($user)));
+            return redirect($frontendUrl . '/guest/verify-otp?email=' . urlencode($user->email));
         } catch (Exception $e) {
             $frontendUrl = env('FRONTEND_URL', 'http://localhost:3000');
             return redirect($frontendUrl . '/guest/login?error=' . urlencode('Google authentication failed: ' . $e->getMessage()));
@@ -184,6 +192,68 @@ class AuthController extends Controller
             'position' => \App\Enums\Positions::CASHIER,
             'role_id' => $staffRole?->id,
             'department' => 'Sales',
+        ]);
+    }
+
+    public function verifyOtp(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+            'otp_code' => ['required', 'string', 'size:6'],
+        ]);
+
+        $user = User::query()->where('email', $validated['email'])->first();
+
+        if (! $user || $user->otp_code !== $validated['otp_code'] || ! $user->otp_expires_at || $user->otp_expires_at->isPast()) {
+            return response()->json([
+                'message' => 'Invalid or expired verification code.',
+                'errors' => [
+                    'otp_code' => ['The verification code is invalid or has expired.'],
+                ],
+            ], 422);
+        }
+
+        // Clear OTP and mark verified
+        $user->forceFill([
+            'otp_code' => null,
+            'otp_expires_at' => null,
+            'email_verified_at' => $user->email_verified_at ?? now(),
+        ])->save();
+
+        $user->load('role.permissions');
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'token' => $token,
+            'user' => $user,
+        ]);
+    }
+
+    public function resendOtp(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+        ]);
+
+        $user = User::query()->where('email', $validated['email'])->first();
+
+        if (! $user) {
+            return response()->json([
+                'message' => 'User not found.',
+            ], 404);
+        }
+
+        $otpCode = (string) rand(100000, 999999);
+
+        $user->update([
+            'otp_code' => $otpCode,
+            'otp_expires_at' => now()->addMinutes(10),
+        ]);
+
+        Mail::to($user->email)->send(new SendOtpMail($otpCode));
+
+        return response()->json([
+            'message' => 'Verification code resent successfully.',
         ]);
     }
 }
