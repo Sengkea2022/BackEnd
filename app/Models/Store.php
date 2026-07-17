@@ -22,6 +22,11 @@ class Store extends Model
         'description',
         'logo_path',
         'is_active',
+        'country',
+        'state',
+        'city',
+        'commune',
+        'village',
     ];
 
     /**

@@ -27,7 +27,7 @@ class UserController extends Controller
 
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
-            'email' => ['sometimes', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user?->id)],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:255'],
             'department' => ['sometimes', 'nullable', 'string', 'max:255'],
         ]);
 
@@ -39,6 +39,26 @@ class UserController extends Controller
 
         return response()->json([
             'user' => $user,
+        ]);
+    }
+
+    public function getAssignablePersonnel(): JsonResponse
+    {
+        $managers = \App\Models\User::query()
+            ->whereHas('role', function ($query) {
+                $query->where('slug', 'manager');
+            })
+            ->get(['id', 'name', 'email', 'store_no']);
+
+        $staff = \App\Models\User::query()
+            ->whereHas('role', function ($query) {
+                $query->where('slug', 'staff');
+            })
+            ->get(['id', 'name', 'email', 'store_no']);
+
+        return response()->json([
+            'managers' => $managers,
+            'staff' => $staff,
         ]);
     }
 }

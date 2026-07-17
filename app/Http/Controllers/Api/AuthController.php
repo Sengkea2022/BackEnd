@@ -30,15 +30,7 @@ class AuthController extends Controller
             'password' => Hash::make($validated['password']),
         ]);
 
-        $otpCode = (string) rand(100000, 999999);
-
-        $user->update([
-            'otp_code' => $otpCode,
-            'otp_expires_at' => now()->addMinutes(10),
-        ]);
-
-        \Illuminate\Support\Facades\Log::info("OTP Code for {$user->email}: {$otpCode}");
-        Mail::to($user->email)->send(new SendOtpMail($otpCode));
+        $this->generateAndSendOtp($user);
 
         return response()->json([
             'requires_otp' => true,
@@ -62,15 +54,7 @@ class AuthController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
-        $otpCode = (string) rand(100000, 999999);
-
-        $user->update([
-            'otp_code' => $otpCode,
-            'otp_expires_at' => now()->addMinutes(10),
-        ]);
-
-        \Illuminate\Support\Facades\Log::info("OTP Code for {$user->email}: {$otpCode}");
-        Mail::to($user->email)->send(new SendOtpMail($otpCode));
+        $this->generateAndSendOtp($user);
 
         return response()->json([
             'requires_otp' => true,
@@ -125,15 +109,7 @@ class AuthController extends Controller
             
             $user = $this->findOrCreateUser($googleUser);
             
-            $otpCode = (string) rand(100000, 999999);
-            
-            $user->update([
-                'otp_code' => $otpCode,
-                'otp_expires_at' => now()->addMinutes(10),
-            ]);
-            
-            \Illuminate\Support\Facades\Log::info("OTP Code for {$user->email}: {$otpCode}");
-            Mail::to($user->email)->send(new SendOtpMail($otpCode));
+            $this->generateAndSendOtp($user);
             
             $frontendUrl = env('FRONTEND_URL', 'http://localhost:3000');
             
@@ -259,18 +235,26 @@ class AuthController extends Controller
             ], 404);
         }
 
-        $otpCode = (string) rand(100000, 999999);
-
-        $user->update([
-            'otp_code' => $otpCode,
-            'otp_expires_at' => now()->addMinutes(10),
-        ]);
-
-        \Illuminate\Support\Facades\Log::info("OTP Code for {$user->email}: {$otpCode}");
-        Mail::to($user->email)->send(new SendOtpMail($otpCode));
+        $this->generateAndSendOtp($user);
 
         return response()->json([
             'message' => 'Verification code resent successfully.',
         ]);
+    }
+
+    /**
+     * Generate, store, and send an OTP code to a user.
+     */
+    protected function generateAndSendOtp(User $user): void
+    {
+        $otpCode = (string) rand(100000, 999999);
+
+        $user->update([
+            'otp_code' => $otpCode,
+            'otp_expires_at' => now()->addMinutes(1),
+        ]);
+
+        \Illuminate\Support\Facades\Log::info("OTP Code for {$user->email}: {$otpCode}");
+        // Mail::to($user->email)->send(new SendOtpMail($otpCode));
     }
 }

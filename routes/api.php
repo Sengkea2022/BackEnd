@@ -19,6 +19,15 @@ Route::options('/{any}', function () {
 
 require __DIR__.'/api/auth.php';
 
+// ── Cambodia location (public — no auth needed) ──────────────────────────────
+Route::prefix('kh-location')->group(function () {
+    Route::get('/provinces',                         [\App\Http\Controllers\Api\KhLocationController::class, 'provinces']);
+    Route::get('/provinces/{code}/districts',        [\App\Http\Controllers\Api\KhLocationController::class, 'districts']);
+    Route::get('/districts/{code}/communes',         [\App\Http\Controllers\Api\KhLocationController::class, 'communes']);
+    Route::get('/communes/{code}/villages',          [\App\Http\Controllers\Api\KhLocationController::class, 'villages']);
+    Route::get('/search',                            [\App\Http\Controllers\Api\KhLocationController::class, 'search']);
+});
+
 Route::middleware('auth:sanctum')->group(function () {
 
     require __DIR__.'/api/user.php';
@@ -36,4 +45,9 @@ Route::middleware('auth:sanctum')->group(function () {
     require __DIR__.'/api/transactions.php';
     require __DIR__.'/api/profits.php';
     require __DIR__.'/api/notifications.php';
+
+    // Store Join Requests
+    Route::get('/store-requests', [\App\Http\Controllers\Api\StoreJoinRequestController::class, 'index']);
+    Route::post('/store-requests', [\App\Http\Controllers\Api\StoreJoinRequestController::class, 'store']);
+    Route::put('/store-requests/{id}', [\App\Http\Controllers\Api\StoreJoinRequestController::class, 'update']);
 });
