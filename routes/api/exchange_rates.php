@@ -3,7 +3,7 @@
 use App\Http\Controllers\Api\ExchangeRateController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware('auth:sanctum')->prefix('exchange_rates')->group(function () {
+Route::prefix('exchange_rates')->group(function () {
     Route::get('/', [ExchangeRateController::class, 'index']);
     Route::post('/', [ExchangeRateController::class, 'store']);
     Route::get('/{uuid}', [ExchangeRateController::class, 'show']);

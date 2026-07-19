@@ -18,16 +18,17 @@ class StoreController extends ApiResourceController
                 'uuid',
                 Rule::unique('stores', 'uuid')->ignore($record?->id),
             ],
-            'store_no' => [
+            'code' => [
                 'sometimes',
                 'string',
                 'max:50',
-                Rule::unique('stores', 'store_no')->ignore($record?->id),
+                Rule::unique('stores', 'code')->ignore($record?->id),
             ],
-            'user_uuid' => [
-                $record ? 'sometimes' : 'required',
-                'uuid',
-                'exists:users,uuid',
+            'user_code' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'exists:users,code',
             ],
             'name' => [
                 $record ? 'sometimes' : 'required',
@@ -67,7 +68,15 @@ class StoreController extends ApiResourceController
 
     public function store(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
     {
+        if (!in_array($request->user()->role?->slug, ['superadmin', 'store-owner'])) {
+            return response()->json(['message' => 'Only admins can create stores.'], 403);
+        }
+
         $validated = $request->validate($this->rules());
+
+        if (empty($validated['user_code'])) {
+            $validated['user_code'] = $request->user()->code;
+        }
 
         $managerId = $validated['manager_id'] ?? null;
         $staffIds = $validated['staff_ids'] ?? [];
@@ -77,15 +86,28 @@ class StoreController extends ApiResourceController
         /** @var Store $store */
         $store = Store::query()->create($validated);
 
+        // Generate default store-specific roles
+        \App\Models\Role::create([
+            'name' => 'Manager',
+            'slug' => 'manager',
+            'store_code' => $store->code,
+        ]);
+        
+        \App\Models\Role::create([
+            'name' => 'Staff',
+            'slug' => 'staff',
+            'store_code' => $store->code,
+        ]);
+
         if ($managerId) {
             \App\Models\User::query()->where('id', $managerId)->update([
-                'store_no' => $store->store_no,
+                'store_code' => $store->code,
             ]);
         }
 
         if (!empty($staffIds)) {
             \App\Models\User::query()->whereIn('id', $staffIds)->update([
-                'store_no' => $store->store_no,
+                'store_code' => $store->code,
             ]);
         }
 
@@ -108,22 +130,22 @@ class StoreController extends ApiResourceController
 
         if ($managerId) {
             \App\Models\User::query()->where('id', $managerId)->update([
-                'store_no' => $store->store_no,
+                'store_code' => $store->code,
             ]);
         }
 
         if (is_array($staffIds)) {
             \App\Models\User::query()
-                ->where('store_no', $store->store_no)
+                ->where('store_code', $store->code)
                 ->whereHas('role', function ($q) {
                     $q->where('slug', 'staff');
                 })
                 ->whereNotIn('id', $staffIds)
-                ->update(['store_no' => 'N/A']);
+                ->update(['store_code' => 'N/A']);
 
             if (!empty($staffIds)) {
                 \App\Models\User::query()->whereIn('id', $staffIds)->update([
-                    'store_no' => $store->store_no,
+                    'store_code' => $store->code,
                 ]);
             }
         }

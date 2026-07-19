@@ -2,22 +2,28 @@
 
 namespace App\Models;
 
+use App\Traits\HasQueryScopes;
+
 use App\Models\Concerns\HasUuid;
-use App\Models\Concerns\HasSequentialNumber;
+use App\Models\Concerns\HasCode;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Store extends Model
 {
-    use HasFactory, HasSequentialNumber, HasUuid;
+    use HasQueryScopes;
+
+    protected array $searchable = [];
+
+    use HasFactory, HasCode, HasUuid;
 
     /**
      * @var list<string>
      */
     protected $fillable = [
         'uuid',
-        'store_no',
-        'user_uuid',
+        'code',
+        'user_code',
         'name',
         'description',
         'logo_path',
@@ -39,8 +45,13 @@ class Store extends Model
         ];
     }
 
-    protected function numberColumn(): string
+    public function codePrefix(): string
     {
-        return 'store_no';
+        return 'ST-';
+    }
+
+    public function codePadding(): int
+    {
+        return 4; // ST-0001
     }
 }

@@ -2,23 +2,26 @@
 
 namespace App\Models;
 
+use App\Traits\HasQueryScopes;
 use App\Models\Concerns\HasUuid;
-use App\Models\Concerns\HasSequentialNumber;
+use App\Models\Concerns\HasCode;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Price extends Model
 {
-    use HasFactory, HasSequentialNumber, HasUuid;
+    use HasFactory, HasCode, HasUuid, HasQueryScopes;
+
+    protected array $searchable = ['code'];
 
     /**
      * @var list<string>
      */
     protected $fillable = [
         'uuid',
-        'price_no',
-        'product_uuid',
-        'currency_uuid',
+        'code',
+        'product_code',
+        'currency_code',
         'cost_price',
         'retail_unit_price',
         'wholesale_unit_price',
@@ -39,8 +42,4 @@ class Price extends Model
         ];
     }
 
-    protected function numberColumn(): string
-    {
-        return 'price_no';
-    }
 }

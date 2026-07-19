@@ -2,22 +2,36 @@
 
 namespace App\Models;
 
+use App\Traits\HasQueryScopes;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 use App\Enums\Positions;
 use App\Enums\UserActiveStatus;
 use App\Enums\UserPaidStatus;
+use App\Models\Concerns\HasUuid;
+use App\Models\Concerns\HasCode;
 
 
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, HasUuid, HasCode, HasQueryScopes;
+
+    protected array $searchable = ['code'];
+
+    public function codePrefix(): string
+    {
+        return 'US-';
+    }
+
+    public function codePadding(): int
+    {
+        return 4; // US-0001
+    }
 
     /**
      * The attributes that are mass assignable.
@@ -29,10 +43,10 @@ class User extends Authenticatable
         'email',
         'password',
         'uuid',
-        'user_no',
+        'code',
         'phone',
         'date_of_birth',
-        'store_no',
+        'store_code',
         'country',
         'state',
         'city',
@@ -80,22 +94,6 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     * Generate a UUID for the uuid column before inserting a new user.
-     */
-    protected static function booted(): void
-    {
-        static::creating(function (User $user): void {
-            if (empty($user->uuid)) {
-                $user->uuid = (string) Str::uuid();
-            }
-
-            if (empty($user->user_no)) {
-                $latestUserNo = User::query()->latest('id')->value('user_no');
-                $user->user_no = (string) (((int) ($latestUserNo ?? 0)) + 1);
-            }
-        });
-    }
 
     /**
      * The role that belongs to the user.

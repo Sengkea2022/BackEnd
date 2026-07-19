@@ -2,21 +2,24 @@
 
 namespace App\Models;
 
+use App\Traits\HasQueryScopes;
 use App\Models\Concerns\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Notification extends Model
 {
-    use HasFactory, HasUuid;
+    use HasFactory, HasUuid, HasQueryScopes;
+
+    protected array $searchable = [];
 
     /**
      * @var list<string>
      */
     protected $fillable = [
         'uuid',
-        'user_uuid',
-        'order_uuid',
+        'user_code',
+        'order_code',
         'type',
         'title',
         'body',

@@ -3,7 +3,7 @@
 use App\Http\Controllers\Api\ProfitController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware('auth:sanctum')->prefix('profits')->group(function () {
+Route::prefix('profits')->group(function () {
     Route::get('/', [ProfitController::class, 'index']);
     Route::post('/', [ProfitController::class, 'store']);
     Route::get('/{uuid}', [ProfitController::class, 'show']);

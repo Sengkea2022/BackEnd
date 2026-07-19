@@ -3,7 +3,7 @@
 use App\Http\Controllers\Api\PriceController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware('auth:sanctum')->prefix('prices')->group(function () {
+Route::prefix('prices')->group(function () {
     Route::get('/', [PriceController::class, 'index']);
     Route::post('/', [PriceController::class, 'store']);
     Route::get('/{uuid}', [PriceController::class, 'show']);

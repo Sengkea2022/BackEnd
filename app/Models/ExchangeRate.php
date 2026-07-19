@@ -2,23 +2,26 @@
 
 namespace App\Models;
 
+use App\Traits\HasQueryScopes;
 use App\Models\Concerns\HasUuid;
-use App\Models\Concerns\HasSequentialNumber;
+use App\Models\Concerns\HasCode;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ExchangeRate extends Model
 {
-    use HasFactory, HasSequentialNumber, HasUuid;
+    use HasFactory, HasCode, HasUuid, HasQueryScopes;
+
+    protected array $searchable = ['code'];
 
     /**
      * @var list<string>
      */
     protected $fillable = [
         'uuid',
-        'exchange_no',
-        'from_currency_uuid',
-        'to_currency_uuid',
+        'code',
+        'from_currency_code',
+        'to_currency_code',
         'rate',
         'exchange_date',
     ];
@@ -34,8 +37,4 @@ class ExchangeRate extends Model
         ];
     }
 
-    protected function numberColumn(): string
-    {
-        return 'exchange_no';
-    }
 }

@@ -2,13 +2,16 @@
 
 namespace App\Models;
 
+use App\Traits\HasQueryScopes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Permission extends Model
 {
-    use HasFactory;
+    use HasFactory, HasQueryScopes;
+
+    protected array $searchable = [];
 
     protected $fillable = [
         'name',

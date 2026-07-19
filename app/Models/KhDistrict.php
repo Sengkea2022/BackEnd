@@ -1,6 +1,13 @@
 <?php namespace App\Models;
+
+use App\Traits\HasQueryScopes;
 use Illuminate\Database\Eloquent\Model;
+
 class KhDistrict extends Model {
+    use HasQueryScopes;
+
+    protected array $searchable = ['code'];
+
     protected $table = 'kh_districts';
     protected $fillable = ['code','province_code','name','name_km','type'];
     public function province() { return $this->belongsTo(KhProvince::class,'province_code','code'); }

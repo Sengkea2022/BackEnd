@@ -45,9 +45,6 @@ Route::middleware('auth:sanctum')->group(function () {
     require __DIR__.'/api/transactions.php';
     require __DIR__.'/api/profits.php';
     require __DIR__.'/api/notifications.php';
-
-    // Store Join Requests
-    Route::get('/store-requests', [\App\Http\Controllers\Api\StoreJoinRequestController::class, 'index']);
-    Route::post('/store-requests', [\App\Http\Controllers\Api\StoreJoinRequestController::class, 'store']);
-    Route::put('/store-requests/{id}', [\App\Http\Controllers\Api\StoreJoinRequestController::class, 'update']);
+    require __DIR__.'/api/role_permission.php';
+    
 });

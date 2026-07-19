@@ -2,21 +2,24 @@
 
 namespace App\Models;
 
+use App\Traits\HasQueryScopes;
 use App\Models\Concerns\HasUuid;
-use App\Models\Concerns\HasSequentialNumber;
+use App\Models\Concerns\HasCode;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Currency extends Model
 {
-    use HasFactory, HasSequentialNumber, HasUuid;
+    use HasFactory, HasCode, HasUuid, HasQueryScopes;
+
+    protected array $searchable = ['code'];
 
     /**
      * @var list<string>
      */
     protected $fillable = [
         'uuid',
-        'currency_no',
+        'code',
         'country_code',
         'currency_code',
         'currency_name',
@@ -34,8 +37,4 @@ class Currency extends Model
         ];
     }
 
-    protected function numberColumn(): string
-    {
-        return 'currency_no';
-    }
 }

@@ -23,31 +23,43 @@ class DatabaseSeeder extends Seeder
         $createUsers = Permission::create(['name' => 'Create Users', 'slug' => 'create-users']);
         $editUsers = Permission::create(['name' => 'Edit Users', 'slug' => 'edit-users']);
         $deleteUsers = Permission::create(['name' => 'Delete Users', 'slug' => 'delete-users']);
-        $devTools = Permission::create(['name' => 'Access Developer Tools', 'slug' => 'access-developer-tools']);
+
+        $viewProducts = Permission::create(['name' => 'View Products', 'slug' => 'view-products']);
+        $createProducts = Permission::create(['name' => 'Create Products', 'slug' => 'create-products']);
+        $editProducts = Permission::create(['name' => 'Edit Products', 'slug' => 'edit-products']);
+        $deleteProducts = Permission::create(['name' => 'Delete Products', 'slug' => 'delete-products']);
 
         // 2. Seed Roles
-        $developerRole = Role::create(['name' => 'Developer', 'slug' => 'developer']);
         $superadminRole = Role::create(['name' => 'SuperAdmin', 'slug' => 'superadmin']);
-        $adminRole = Role::create(['name' => 'Admin', 'slug' => 'admin']);
+        $storeOwnerRole = Role::create(['name' => 'Store Owner', 'slug' => 'store-owner']);
         $managerRole = Role::create(['name' => 'Manager', 'slug' => 'manager']);
         $staffRole = Role::create(['name' => 'Staff', 'slug' => 'staff']);
 
         // 3. Attach Permissions to Roles
-        $developerRole->permissions()->attach([$viewUsers->id, $editUsers->id, $createUsers->id, $deleteUsers->id, $devTools->id]);
-        $superadminRole->permissions()->attach([$viewUsers->id, $editUsers->id, $createUsers->id, $deleteUsers->id]);
-        $adminRole->permissions()->attach([$viewUsers->id, $editUsers->id, $createUsers->id]); // Admin cannot delete users
-        $managerRole->permissions()->attach([$viewUsers->id, $editUsers->id, $createUsers->id]);
-        $staffRole->permissions()->attach([$viewUsers->id]);
-
-        // 4. Create Test Users and Assign Roles
-        User::factory()->create([
-            'name' => 'Developer User',
-            'email' => 'developer@example.com',
-            'department' => 'IT',
-            'position' => Positions::TECH_LEAD,
-            'role_id' => $developerRole->id,
+        // SuperAdmin gets everything
+        $superadminRole->permissions()->attach([
+            $viewUsers->id, $editUsers->id, $createUsers->id, $deleteUsers->id,
+            $viewProducts->id, $createProducts->id, $editProducts->id, $deleteProducts->id
+        ]);
+        
+        // Store Owner gets everything
+        $storeOwnerRole->permissions()->attach([
+            $viewUsers->id, $editUsers->id, $createUsers->id, $deleteUsers->id,
+            $viewProducts->id, $createProducts->id, $editProducts->id, $deleteProducts->id
+        ]);
+        
+        // Manager can't delete users or delete products
+        $managerRole->permissions()->attach([
+            $viewUsers->id, $editUsers->id, $createUsers->id,
+            $viewProducts->id, $createProducts->id, $editProducts->id
+        ]);
+        
+        // Staff can only view/create products, but cannot edit or delete them. Cannot manage users.
+        $staffRole->permissions()->attach([
+            $viewProducts->id, $createProducts->id
         ]);
 
+        // 4. Create Test Users and Assign Roles
         User::factory()->create([
             'name' => 'Super Admin User',
             'email' => 'superadmin@example.com',
@@ -57,11 +69,11 @@ class DatabaseSeeder extends Seeder
         ]);
 
         User::factory()->create([
-            'name' => 'Admin User',
-            'email' => 'admin@example.com',
+            'name' => 'Store Owner',
+            'email' => 'owner@example.com',
             'department' => 'Operations',
             'position' => Positions::ADMINISTRATOR,
-            'role_id' => $adminRole->id,
+            'role_id' => $storeOwnerRole->id,
         ]);
 
         User::factory()->create([

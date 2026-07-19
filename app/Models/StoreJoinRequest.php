@@ -2,17 +2,22 @@
 
 namespace App\Models;
 
+use App\Traits\HasQueryScopes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class StoreJoinRequest extends Model
 {
-    use HasFactory;
+    use HasFactory, HasQueryScopes;
+
+    protected array $searchable = [];
 
     protected $fillable = [
         'user_id',
         'store_id',
         'status',
+        'type',
+        'role_id',
     ];
 
     /**
