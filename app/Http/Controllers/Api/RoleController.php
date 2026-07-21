@@ -19,6 +19,7 @@ class RoleController extends ApiResourceController
             'name' => 'sometimes|string|max:255',
             'slug' => 'sometimes|string|max:255',
             'level' => 'sometimes|integer|min:3|max:99',
+            'department' => 'sometimes|nullable|string|max:255',
             'permissions' => 'sometimes|array',
             'permissions.*' => 'integer|exists:permissions,id',
         ];
@@ -38,7 +39,7 @@ class RoleController extends ApiResourceController
         if ($storeCode) {
             $query->where('store_code', $storeCode);
         } else {
-            // If no store code provided, only show global roles (or we can just return all for superadmin, but safer to restrict)
+            // If no store code provided, only show global roles
             if ($request->user() && $request->user()->role?->slug !== 'superadmin') {
                 $query->whereNull('store_code');
             }
@@ -56,7 +57,8 @@ class RoleController extends ApiResourceController
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'store_uuid' => 'required|uuid|exists:stores,uuid',
-            'level' => 'required|integer|min:3|max:99',
+            'level' => 'sometimes|integer|min:1|max:99',
+            'department' => 'sometimes|nullable|string|max:255',
         ]);
 
         $store = \App\Models\Store::where('uuid', $validated['store_uuid'])->firstOrFail();
@@ -68,19 +70,13 @@ class RoleController extends ApiResourceController
             return response()->json(['message' => 'You cannot create roles for other stores'], 403);
         }
 
-        $userLevel = $request->user() ? $request->user()->role?->level : 99;
-        if ($request->user()->role?->slug !== 'superadmin' && $validated['level'] <= $userLevel) {
-            return response()->json(['message' => 'You cannot create a role with a rank equal to or higher than your own.'], 403);
-        }
-
         $slug = \Illuminate\Support\Str::slug($validated['name']);
-
-        // Append a random string to the slug to ensure uniqueness if needed, but we already updated constraints to allow same slug for different store_codes
         
         $role = Role::create([
             'name' => $validated['name'],
             'slug' => $slug,
-            'level' => $validated['level'],
+            'level' => $validated['level'] ?? 3,
+            'department' => $validated['department'] ?? null,
             'store_code' => $store->code,
         ]);
 
@@ -124,13 +120,19 @@ class RoleController extends ApiResourceController
             return response()->json(['message' => 'You cannot promote a role to a rank equal to or higher than your own.'], 403);
         }
 
+        $updateData = [];
         if (isset($validated['name'])) {
-            $record->update([
-                'name' => $validated['name'],
-                'level' => $validated['level'] ?? $record->level,
-            ]);
-        } elseif (isset($validated['level'])) {
-            $record->update(['level' => $validated['level']]);
+            $updateData['name'] = $validated['name'];
+        }
+        if (isset($validated['level'])) {
+            $updateData['level'] = $validated['level'];
+        }
+        if (array_key_exists('department', $validated)) {
+            $updateData['department'] = $validated['department'];
+        }
+
+        if (!empty($updateData)) {
+            $record->update($updateData);
         }
 
         if (isset($validated['permissions'])) {

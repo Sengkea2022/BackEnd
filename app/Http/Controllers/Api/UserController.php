@@ -13,7 +13,7 @@ class UserController extends Controller
     {
         $user = $request->user();
         if ($user) {
-            $user->load('role.permissions');
+            $user->load(['role.permissions', 'store']);
         }
 
         return response()->json([
@@ -34,7 +34,7 @@ class UserController extends Controller
         $user?->update($validated);
 
         if ($user) {
-            $user->load('role.permissions');
+            $user->load(['role.permissions', 'store']);
         }
 
         return response()->json([
@@ -74,10 +74,36 @@ class UserController extends Controller
         ]);
     }
 
-    public function indexStoreStaff(Request $request): JsonResponse
+    public function getStoreDepartments(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'store_uuid' => 'required|uuid|exists:stores,uuid'
+        ]);
+
+        $store = \App\Models\Store::where('uuid', $validated['store_uuid'])->firstOrFail();
+
+        $userDepts = \App\Models\User::where('store_code', $store->code)
+            ->whereNotNull('department')
+            ->where('department', '!=', '')
+            ->pluck('department');
+
+        $roleDepts = \App\Models\Role::where('store_code', $store->code)
+            ->whereNotNull('department')
+            ->where('department', '!=', '')
+            ->pluck('department');
+
+        $departments = $userDepts->merge($roleDepts)->unique()->values();
+
+        return response()->json([
+            'data' => $departments
+        ]);
+    }
+
+    public function indexStoreStaff(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'store_uuid' => 'required|uuid|exists:stores,uuid',
+            'department' => 'sometimes|nullable|string',
         ]);
 
         $store = \App\Models\Store::where('uuid', $validated['store_uuid'])->firstOrFail();
@@ -87,18 +113,86 @@ class UserController extends Controller
         $hasPermission = $user->role && $user->role->permissions()->where('slug', 'edit-users')->exists();
         
         if (!$isOwner && (!$hasPermission || $user->store_code !== $store->code)) {
-            // Wait, maybe any staff can view the staff list? Yes, let's just check if they are in the store.
             if ($user->store_code !== $store->code && $user->role?->slug !== 'superadmin') {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
         }
 
-        $staff = \App\Models\User::with('role')
-            ->where('store_code', $store->code)
-            ->get();
+        $query = \App\Models\User::with('role')
+            ->where('store_code', $store->code);
+
+        // Manager Department Scope check (role department takes precedence over user department)
+        $managerDept = $user->role?->department ?? $user->department;
+
+        if (!$isOwner && $user->role?->slug !== 'superadmin' && !empty($managerDept)) {
+            $query->where('department', $managerDept);
+        } elseif (!empty($validated['department'])) {
+            $query->where('department', $validated['department']);
+        }
+
+        $staff = $query->get();
 
         return response()->json([
             'data' => $staff
+        ]);
+    }
+
+    public function updateStaff(Request $request, string $uuid): JsonResponse
+    {
+        $validated = $request->validate([
+            'role_id' => 'sometimes|nullable|exists:roles,id',
+            'department' => 'sometimes|nullable|string|max:255',
+            'active_status' => 'sometimes|string|in:active,inactive',
+        ]);
+
+        $targetUser = \App\Models\User::with('role')->where('uuid', $uuid)->firstOrFail();
+        $user = $request->user();
+
+        $storeCode = $targetUser->store_code;
+        if (!$storeCode) {
+            return response()->json(['message' => 'User is not assigned to any store.'], 400);
+        }
+
+        $store = \App\Models\Store::where('code', $storeCode)->firstOrFail();
+        $isOwner = $store->user_code === $user->code;
+        $hasPermission = $user->role && $user->role->permissions()->where('slug', 'edit-users')->exists();
+
+        if (!$isOwner && (!$hasPermission || $user->store_code !== $storeCode)) {
+            return response()->json(['message' => 'Unauthorized to update staff.'], 403);
+        }
+
+        // Hierarchy check
+        $targetLevel = $targetUser->role ? $targetUser->role->level : 99;
+        $userLevel = $user->role ? $user->role->level : 99;
+
+        if (!$isOwner && $user->role?->slug !== 'superadmin' && $targetLevel <= $userLevel) {
+            return response()->json(['message' => 'You cannot modify a user with a rank equal to or higher than your own.'], 403);
+        }
+
+        // Manager Department Scope check
+        $managerDept = $user->role?->department ?? $user->department;
+        if (!$isOwner && $user->role?->slug !== 'superadmin' && !empty($managerDept)) {
+            if ($targetUser->department !== $managerDept) {
+                return response()->json(['message' => 'You can only manage staff in your role\'s assigned department (' . $managerDept . ').'], 403);
+            }
+            // If changing department, restrict manager to their own department
+            if (array_key_exists('department', $validated) && $validated['department'] !== $managerDept) {
+                return response()->json(['message' => 'You can only assign staff to your role\'s assigned department (' . $managerDept . ').'], 403);
+            }
+        }
+
+        if (array_key_exists('role_id', $validated) && $validated['role_id']) {
+            $newRole = \App\Models\Role::find($validated['role_id']);
+            if ($newRole && !$isOwner && $user->role?->slug !== 'superadmin' && $newRole->level <= $userLevel) {
+                return response()->json(['message' => 'You cannot assign a role rank equal to or higher than your own.'], 403);
+            }
+        }
+
+        $targetUser->update($validated);
+
+        return response()->json([
+            'message' => 'Staff updated successfully.',
+            'data' => $targetUser->fresh('role'),
         ]);
     }
 
@@ -134,6 +228,14 @@ class UserController extends Controller
         
         if (!$isOwner && $targetLevel <= $userLevel) {
             return response()->json(['message' => 'You cannot kick out a user with a rank equal to or higher than your own.'], 403);
+        }
+
+        // Manager Department Scope check
+        $managerDept = $user->role?->department ?? $user->department;
+        if (!$isOwner && $user->role?->slug !== 'superadmin' && !empty($managerDept)) {
+            if ($targetUser->department !== $managerDept) {
+                return response()->json(['message' => 'You can only remove staff in your assigned department (' . $managerDept . ').'], 403);
+            }
         }
 
         $targetUser->update(['store_code' => null, 'role_id' => null]);

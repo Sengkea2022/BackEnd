@@ -96,6 +96,14 @@ class User extends Authenticatable
 
 
     /**
+     * The store that belongs to the user.
+     */
+    public function store(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Store::class, 'store_code', 'code');
+    }
+
+    /**
      * The role that belongs to the user.
      */
     public function role(): \Illuminate\Database\Eloquent\Relations\BelongsTo

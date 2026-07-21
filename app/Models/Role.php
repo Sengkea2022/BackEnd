@@ -19,6 +19,7 @@ class Role extends Model
         'slug',
         'store_code',
         'level',
+        'department',
     ];
 
     /**

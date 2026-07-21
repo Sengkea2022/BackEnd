@@ -9,6 +9,53 @@ use Illuminate\Validation\Rule;
 class StoreController extends ApiResourceController
 {
     protected string $modelClass = Store::class;
+    protected array $with = ['owner'];
+
+    protected function query(): \Illuminate\Database\Eloquent\Builder
+    {
+        $user = request()?->user();
+        $query = parent::query();
+
+        if ($user) {
+            if ($user->role?->slug === 'superadmin') {
+                return $query;
+            }
+            if ($user->role?->slug === 'store-owner') {
+                return $query->where(function ($q) use ($user) {
+                    $q->where('user_code', $user->code);
+                    if (!empty($user->store_code) && $user->store_code !== 'N/A') {
+                        $q->orWhere('code', $user->store_code);
+                    }
+                });
+            }
+            if (!empty($user->store_code) && $user->store_code !== 'N/A') {
+                return $query->where('code', $user->store_code);
+            }
+            // Allow unassigned users to view active stores for join request dropdown
+            if (request()?->isMethod('get')) {
+                return $query->where('is_active', true);
+            }
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query;
+    }
+
+    public function show(string $uuid): \Illuminate\Http\JsonResponse
+    {
+        $user = request()?->user();
+        $store = $this->resolveRecord($uuid);
+
+        if ($user && $user->role?->slug !== 'superadmin' && $store->user_code !== $user->code) {
+            if (empty($user->store_code) || $user->store_code === 'N/A' || $user->store_code !== $store->code) {
+                return response()->json(['message' => 'Unauthorized. You are not assigned to this store.'], 403);
+            }
+        }
+
+        return response()->json([
+            'data' => $store,
+        ]);
+    }
 
     protected function rules(?Model $record = null): array
     {

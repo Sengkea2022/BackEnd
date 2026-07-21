@@ -14,10 +14,12 @@ class StoreJoinRequest extends Model
 
     protected $fillable = [
         'user_id',
+        'user_code',
         'store_id',
         'status',
         'type',
         'role_id',
+        'department',
     ];
 
     /**
@@ -34,5 +36,13 @@ class StoreJoinRequest extends Model
     public function store()
     {
         return $this->belongsTo(Store::class);
+    }
+
+    /**
+     * Get the role requested/invited for.
+     */
+    public function role()
+    {
+        return $this->belongsTo(Role::class);
     }
 }

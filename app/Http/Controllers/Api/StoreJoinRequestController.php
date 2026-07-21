@@ -13,28 +13,69 @@ class StoreJoinRequestController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
+        if (!$user) {
+            return response()->json(['data' => []]);
+        }
+
+        if (!$user->relationLoaded('role')) {
+            $user->load('role');
+        }
+
         $storeUuid = $request->input('store_uuid');
 
-        if ($storeUuid) {
-            // Manager viewing store requests/invites
-            $store = \App\Models\Store::where('uuid', $storeUuid)->firstOrFail();
-            
-            $isOwner = $store->user_code === $user->code;
-            
-            // Check if user has permission to manage users (if not owner)
-            $hasPermission = $user->role && $user->role->permissions()->where('slug', 'edit-users')->exists();
+        $roleSlug = $user->role?->slug;
+        $isSuper = in_array($roleSlug, ['superadmin', 'admin']);
+        $isOwner = $roleSlug === 'store-owner';
+        $hasEditUsersPermission = $user->role && $user->role->permissions()->where('slug', 'edit-users')->exists();
+        $isOwnerOrManager = $isSuper || $isOwner || $hasEditUsersPermission;
 
-            if (!$isOwner && (!$hasPermission || $user->store_code !== $store->code)) {
-                return response()->json(['message' => 'Unauthorized. You do not have permission to view requests.'], 403);
+        if ($storeUuid) {
+            $store = \App\Models\Store::where('uuid', $storeUuid)
+                ->orWhere('code', $storeUuid)
+                ->firstOrFail();
+
+            $isStoreOwner = $store->user_code === $user->code;
+
+            if (!$isSuper && !$isStoreOwner && (!$hasEditUsersPermission || $user->store_code !== $store->code)) {
+                return response()->json(['message' => 'Unauthorized.'], 403);
             }
 
-            $requests = StoreJoinRequest::with(['user.role', 'store'])->where('store_id', $store->id)->where('status', 'pending')->get();
-            return response()->json(['data' => $requests]);
-        } else {
-            // User viewing their own requests/invites
-            $requests = StoreJoinRequest::with(['store', 'user.role'])->where('user_id', $user->id)->where('status', 'pending')->get();
+            $requests = StoreJoinRequest::with(['user.role', 'store', 'role'])
+                ->where('store_id', $store->id)
+                ->where('type', 'request')
+                ->where('status', 'pending')
+                ->get();
             return response()->json(['data' => $requests]);
         }
+
+        if ($isOwnerOrManager) {
+            $query = StoreJoinRequest::with(['user.role', 'store', 'role'])
+                ->where('type', 'request')
+                ->where('status', 'pending');
+
+            if (!$isSuper) {
+                $storeIds = \App\Models\Store::where('user_code', $user->code);
+                if (!empty($user->store_code) && $user->store_code !== 'N/A') {
+                    $storeIds->orWhere('code', $user->store_code);
+                }
+                $query->whereIn('store_id', $storeIds->pluck('id'));
+            }
+
+            $requests = $query->get();
+            return response()->json(['data' => $requests]);
+        }
+
+        // Regular staff member viewing their own requests & invitations
+        $requests = StoreJoinRequest::with(['store', 'user.role', 'role'])
+            ->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id);
+                if ($user->code) {
+                    $q->orWhere('user_code', $user->code);
+                }
+            })
+            ->where('status', 'pending')
+            ->get();
+        return response()->json(['data' => $requests]);
     }
 
     public function store(Request $request): JsonResponse
@@ -45,6 +86,7 @@ class StoreJoinRequestController extends Controller
             'store_code' => 'required_if:type,request|string', 
             'email' => 'required_if:type,invite|email',
             'role_id' => 'required_if:type,invite|exists:roles,id',
+            'department' => 'sometimes|nullable|string|max:255',
         ]);
         
         $user = $request->user();
@@ -57,12 +99,16 @@ class StoreJoinRequestController extends Controller
                 return response()->json(['message' => 'You are already in this store.'], 400);
             }
             
-            if (StoreJoinRequest::where('user_id', $user->id)->where('store_id', $store->id)->where('status', 'pending')->exists()) {
+            if (StoreJoinRequest::where(function ($q) use ($user) {
+                $q->where('user_id', $user->id);
+                if ($user->code) $q->orWhere('user_code', $user->code);
+            })->where('store_id', $store->id)->where('status', 'pending')->exists()) {
                 return response()->json(['message' => 'You already have a pending request.'], 400);
             }
             
             $req = StoreJoinRequest::create([
-                'user_id' => $user->id, 
+                'user_id' => $user->id,
+                'user_code' => $user->code,
                 'store_id' => $store->id, 
                 'type' => 'request', 
                 'status' => 'pending'
@@ -76,6 +122,13 @@ class StoreJoinRequestController extends Controller
             $hasPermission = $user->role && $user->role->permissions()->where('slug', 'edit-users')->exists();
             if (!$isOwner && (!$hasPermission || $user->store_code !== $store->code)) {
                 return response()->json(['message' => 'Unauthorized to invite staff'], 403);
+            }
+
+            // Department check for manager
+            $department = $validated['department'] ?? null;
+            $managerDept = $user->role?->department ?? $user->department;
+            if (!$isOwner && $user->role?->slug !== 'superadmin' && !empty($managerDept)) {
+                $department = $managerDept; // enforce manager's department
             }
             
             $targetUser = \App\Models\User::where('email', $validated['email'])->first();
@@ -92,15 +145,20 @@ class StoreJoinRequestController extends Controller
                 return response()->json(['message' => 'You cannot invite someone to a role equal or higher than your own'], 403);
             }
             
-            if (StoreJoinRequest::where('user_id', $targetUser->id)->where('store_id', $store->id)->where('status', 'pending')->exists()) {
+            if (StoreJoinRequest::where(function ($q) use ($targetUser) {
+                $q->where('user_id', $targetUser->id);
+                if ($targetUser->code) $q->orWhere('user_code', $targetUser->code);
+            })->where('store_id', $store->id)->where('status', 'pending')->exists()) {
                 return response()->json(['message' => 'Invite already pending for this user.'], 400);
             }
             
             $req = StoreJoinRequest::create([
                 'user_id' => $targetUser->id, 
+                'user_code' => $targetUser->code,
                 'store_id' => $store->id, 
                 'type' => 'invite', 
                 'role_id' => $targetRole->id, 
+                'department' => $department,
                 'status' => 'pending'
             ]);
             return response()->json(['message' => 'Invitation sent successfully.', 'data' => $req]);
@@ -132,15 +190,36 @@ class StoreJoinRequestController extends Controller
             }
             
             if ($validated['status'] === 'approved') {
-                $val = $request->validate(['role_id' => 'required|exists:roles,id']);
-                $role = \App\Models\Role::find($val['role_id']);
+                $val = $request->validate([
+                    'role_id' => 'sometimes|nullable|exists:roles,id',
+                    'department' => 'sometimes|nullable|string|max:255',
+                ]);
+
+                $roleId = $val['role_id'] ?? null;
+                if (!$roleId) {
+                    $staffRole = \App\Models\Role::where('store_code', $store->code)->where('slug', 'staff')->first()
+                        ?? \App\Models\Role::where('slug', 'staff')->first();
+                    $roleId = $staffRole?->id;
+                }
+
+                $role = \App\Models\Role::findOrFail($roleId);
                 
                 $userLevel = $user->role ? $user->role->level : 99;
                 if (!$isOwner && $role->level <= $userLevel) {
                     return response()->json(['message' => 'You cannot assign a role equal or higher than your own'], 403);
                 }
+
+                $department = $val['department'] ?? $req->department;
+                $managerDept = $user->role?->department ?? $user->department;
+                if (!$isOwner && $user->role?->slug !== 'superadmin' && !empty($managerDept)) {
+                    $department = $managerDept;
+                }
                 
-                $req->user->update(['store_code' => $store->code, 'role_id' => $role->id]);
+                $updateData = ['store_code' => $store->code, 'role_id' => $role->id];
+                if ($department) {
+                    $updateData['department'] = $department;
+                }
+                $req->user->update($updateData);
             }
         } else {
             // User approves an invite
@@ -149,12 +228,19 @@ class StoreJoinRequestController extends Controller
             }
             
             if ($validated['status'] === 'approved') {
-                $req->user->update(['store_code' => $req->store->code, 'role_id' => $req->role_id]);
+                $updateData = ['store_code' => $req->store->code, 'role_id' => $req->role_id];
+                if ($req->department) {
+                    $updateData['department'] = $req->department;
+                }
+                $req->user->update($updateData);
             }
         }
         
         $req->update(['status' => $validated['status']]);
-        return response()->json(['message' => 'Request updated successfully.']);
+        return response()->json([
+            'message' => 'Request updated successfully.',
+            'user' => $req->user->fresh('role')
+        ]);
     }
 
     public function destroy(Request $request, $id): JsonResponse

@@ -50,8 +50,8 @@ class Store extends Model
         return 'ST-';
     }
 
-    public function codePadding(): int
+    public function owner(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
-        return 4; // ST-0001
+        return $this->belongsTo(User::class, 'user_code', 'code');
     }
 }
