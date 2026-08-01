@@ -2,46 +2,48 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use App\Models\Role;
+use App\Models\Shop;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class RoleController extends ApiResourceController
+class RoleController extends Controller
 {
-    protected string $modelClass = Role::class;
-
     protected array $with = ['permissions'];
 
-    protected function rules(?Model $record = null): array
+    protected function rules($role = null): array
     {
         return [
             'name' => 'sometimes|string|max:255',
-            'slug' => 'sometimes|string|max:255',
-            'level' => 'sometimes|integer|min:3|max:99',
+            'level' => 'sometimes|integer|min:1|max:99',
             'department' => 'sometimes|nullable|string|max:255',
             'permissions' => 'sometimes|array',
-            'permissions.*' => 'integer|exists:permissions,id',
+            'permissions.*' => 'exists:permissions,id',
         ];
     }
 
     public function index(Request $request): JsonResponse
     {
-        $storeUuid = $request->input('store_uuid');
-        $storeCode = null;
-        if ($storeUuid) {
-            $store = \App\Models\Store::where('uuid', $storeUuid)->first();
-            $storeCode = $store ? $store->code : null;
+        $shopUuid = $request->input('shop_uuid') ?? $request->input('store_uuid');
+        $shopCode = null;
+        if ($shopUuid) {
+            $shop = Shop::where('uuid', $shopUuid)->first();
+            $shopCode = $shop ? $shop->code : null;
         }
         
         $query = Role::query()->with('permissions');
         
-        if ($storeCode) {
-            $query->where('store_code', $storeCode);
+        if ($shopCode) {
+            $query->where(function ($q) use ($shopCode) {
+                $q->where('shop_code', $shopCode)
+                  ->orWhere('store_code', $shopCode);
+            });
         } else {
-            // If no store code provided, only show global roles
+            // If no shop code provided, only show global roles
             if ($request->user() && $request->user()->role?->slug !== 'superadmin') {
-                $query->whereNull('store_code');
+                $query->whereNull('shop_code')->whereNull('store_code');
             }
         }
         
@@ -54,20 +56,25 @@ class RoleController extends ApiResourceController
 
     public function store(Request $request): JsonResponse
     {
+        $shopUuid = $request->input('shop_uuid') ?? $request->input('store_uuid');
+        
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'store_uuid' => 'required|uuid|exists:stores,uuid',
             'level' => 'sometimes|integer|min:1|max:99',
             'department' => 'sometimes|nullable|string|max:255',
         ]);
 
-        $store = \App\Models\Store::where('uuid', $validated['store_uuid'])->firstOrFail();
+        if (!$shopUuid) {
+            return response()->json(['message' => 'shop_uuid is required'], 422);
+        }
 
-        $userStoreCode = $request->user() ? $request->user()->store_code : null;
-        $isStoreOwner = $store->user_code === $request->user()->code;
+        $shop = Shop::where('uuid', $shopUuid)->firstOrFail();
 
-        if ($request->user()->role?->slug !== 'superadmin' && !$isStoreOwner && $store->code !== $userStoreCode) {
-            return response()->json(['message' => 'You cannot create roles for other stores'], 403);
+        $userShopCode = $request->user() ? ($request->user()->shop_code ?? $request->user()->store_code) : null;
+        $isShopOwner = $shop->user_code === $request->user()->code;
+
+        if ($request->user()->role?->slug !== 'superadmin' && !$isShopOwner && $shop->code !== $userShopCode) {
+            return response()->json(['message' => 'You cannot create roles for other shops'], 403);
         }
 
         $slug = \Illuminate\Support\Str::slug($validated['name']);
@@ -77,7 +84,8 @@ class RoleController extends ApiResourceController
             'slug' => $slug,
             'level' => $validated['level'] ?? 3,
             'department' => $validated['department'] ?? null,
-            'store_code' => $store->code,
+            'shop_code' => $shop->code,
+            'store_code' => $shop->code,
         ]);
 
         return response()->json([
@@ -89,7 +97,7 @@ class RoleController extends ApiResourceController
     {
         $record = $this->resolveRecord($uuid);
         
-        if ($record->slug === 'superadmin' || $record->slug === 'store-owner') {
+        if ($record->slug === 'superadmin' || $record->slug === 'store-owner' || $record->slug === 'shop-owner') {
             return response()->json(['message' => 'Cannot modify global roles'], 403);
         }
 
@@ -97,16 +105,18 @@ class RoleController extends ApiResourceController
             return response()->json(['message' => 'You cannot modify your own role'], 403);
         }
 
-        if (is_null($record->store_code) && $request->user() && $request->user()->role?->slug !== 'superadmin') {
+        $roleShopCode = $record->shop_code ?? $record->store_code;
+
+        if (is_null($roleShopCode) && $request->user() && $request->user()->role?->slug !== 'superadmin') {
             return response()->json(['message' => 'You cannot modify global roles'], 403);
         }
 
-        $store = \App\Models\Store::where('code', $record->store_code)->first();
-        $isStoreOwner = $store && $store->user_code === $request->user()->code;
-        $userStoreCode = $request->user() ? $request->user()->store_code : null;
+        $shop = Shop::where('code', $roleShopCode)->first();
+        $isShopOwner = $shop && $shop->user_code === $request->user()->code;
+        $userShopCode = $request->user() ? ($request->user()->shop_code ?? $request->user()->store_code) : null;
         
-        if ($record->store_code !== null && $request->user()->role?->slug !== 'superadmin' && !$isStoreOwner && $record->store_code !== $userStoreCode) {
-            return response()->json(['message' => 'You cannot modify roles for other stores'], 403);
+        if ($roleShopCode !== null && $request->user()->role?->slug !== 'superadmin' && !$isShopOwner && $roleShopCode !== $userShopCode) {
+            return response()->json(['message' => 'You cannot modify roles for other shops'], 403);
         }
 
         $userLevel = $request->user() ? $request->user()->role?->level : 99;
@@ -149,16 +159,18 @@ class RoleController extends ApiResourceController
         $request = request();
         $record = $this->resolveRecord($uuid);
         
-        if (is_null($record->store_code)) {
+        $roleShopCode = $record->shop_code ?? $record->store_code;
+
+        if (is_null($roleShopCode)) {
             return response()->json(['message' => 'Cannot delete global roles'], 403);
         }
 
-        $store = \App\Models\Store::where('code', $record->store_code)->first();
-        $isStoreOwner = $store && $store->user_code === $request->user()->code;
-        $userStoreCode = $request->user() ? $request->user()->store_code : null;
+        $shop = Shop::where('code', $roleShopCode)->first();
+        $isShopOwner = $shop && $shop->user_code === $request->user()->code;
+        $userShopCode = $request->user() ? ($request->user()->shop_code ?? $request->user()->store_code) : null;
         
-        if ($request->user()->role?->slug !== 'superadmin' && !$isStoreOwner && $record->store_code !== $userStoreCode) {
-            return response()->json(['message' => 'You cannot delete roles for other stores'], 403);
+        if ($request->user()->role?->slug !== 'superadmin' && !$isShopOwner && $roleShopCode !== $userShopCode) {
+            return response()->json(['message' => 'You cannot delete roles for other shops'], 403);
         }
 
         $userLevel = $request->user() ? $request->user()->role?->level : 99;

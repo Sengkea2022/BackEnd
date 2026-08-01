@@ -17,17 +17,26 @@ class Role extends Model
     protected $fillable = [
         'name',
         'slug',
+        'shop_code',
         'store_code',
         'level',
         'department',
     ];
 
     /**
+     * The shop this role belongs to.
+     */
+    public function shop()
+    {
+        return $this->belongsTo(Shop::class, 'shop_code', 'code');
+    }
+
+    /**
      * The store this role belongs to.
      */
     public function store()
     {
-        return $this->belongsTo(Store::class, 'store_code', 'code');
+        return $this->belongsTo(Shop::class, 'shop_code', 'code');
     }
 
     /**

@@ -14,17 +14,31 @@ class ProductController extends ApiResourceController
     {
         $user = $request->user();
 
+        // Convert legacy filter[store_code] to filter[shop_code]
+        if ($request->has('filter.store_code')) {
+            $filter = $request->input('filter', []);
+            if (!isset($filter['shop_code']) && isset($filter['store_code'])) {
+                $filter['shop_code'] = $filter['store_code'];
+            }
+            unset($filter['store_code']);
+            $request->merge(['filter' => $filter]);
+        }
+
         if ($user && $user->role?->slug !== 'superadmin') {
-            $storeCode = $request->input('filter.store_code');
-            if ($storeCode) {
-                $store = \App\Models\Store::where('code', $storeCode)->first();
-                if ($store && $store->user_code !== $user->code) {
-                    if (empty($user->store_code) || $user->store_code === 'N/A' || $user->store_code !== $store->code) {
-                        return response()->json(['message' => 'Unauthorized access to store products'], 403);
+            $shopCode = $request->input('filter.shop_code');
+            if ($shopCode) {
+                $shop = \App\Models\Shop::where('code', $shopCode)->first();
+                if ($shop && $shop->user_code !== $user->code) {
+                    $userShopCode = $user->shop_code ?? $user->store_code;
+                    if (empty($userShopCode) || $userShopCode === 'N/A' || $userShopCode !== $shop->code) {
+                        return response()->json(['message' => 'Unauthorized access to shop products'], 403);
                     }
                 }
-            } elseif (empty($user->store_code) || $user->store_code === 'N/A') {
-                return response()->json(['data' => [], 'meta' => ['total' => 0]]);
+            } else {
+                $userShopCode = $user->shop_code ?? $user->store_code;
+                if (empty($userShopCode) || $userShopCode === 'N/A') {
+                    return response()->json(['data' => [], 'meta' => ['total' => 0]]);
+                }
             }
         }
 
@@ -56,7 +70,7 @@ class ProductController extends ApiResourceController
             \App\Models\Stock::create([
                 'uuid' => (string) \Illuminate\Support\Str::uuid(),
                 'code' => 'STK-' . $product->code,
-                'store_code' => $product->store_code,
+                'shop_code' => $product->shop_code ?? $product->store_code,
                 'product_code' => $product->code,
                 'qty' => (int) $request->input('stock', 0),
             ]);
@@ -105,7 +119,7 @@ class ProductController extends ApiResourceController
                 \App\Models\Stock::create([
                     'uuid' => (string) \Illuminate\Support\Str::uuid(),
                     'code' => 'STK-' . $product->code,
-                    'store_code' => $product->store_code,
+                    'shop_code' => $product->shop_code ?? $product->store_code,
                     'product_code' => $product->code,
                     'qty' => $stockVal,
                 ]);
@@ -131,10 +145,10 @@ class ProductController extends ApiResourceController
                 'max:50',
                 Rule::unique('products', 'code')->ignore($record?->id),
             ],
-            'store_code' => [
+            'shop_code' => [
                 $record ? 'sometimes' : 'required',
                 'string',
-                'exists:stores,code',
+                'exists:shops,code',
             ],
             'category_code' => [
                 $record ? 'sometimes' : 'required',

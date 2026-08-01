@@ -6,7 +6,7 @@ use App\Traits\HasQueryScopes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class StoreJoinRequest extends Model
+class ShopJoinRequest extends Model
 {
     use HasFactory, HasQueryScopes;
 
@@ -15,7 +15,7 @@ class StoreJoinRequest extends Model
     protected $fillable = [
         'user_id',
         'user_code',
-        'store_id',
+        'shop_id',
         'status',
         'type',
         'role_id',
@@ -31,11 +31,11 @@ class StoreJoinRequest extends Model
     }
 
     /**
-     * Get the store requested to join.
+     * Get the shop requested to join.
      */
-    public function store()
+    public function shop()
     {
-        return $this->belongsTo(Store::class);
+        return $this->belongsTo(Shop::class);
     }
 
     /**

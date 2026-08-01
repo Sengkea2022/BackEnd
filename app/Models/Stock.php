@@ -20,6 +20,7 @@ class Stock extends Model
     protected $fillable = [
         'uuid',
         'code',
+        'shop_code',
         'store_code',
         'product_code',
         'qty',

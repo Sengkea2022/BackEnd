@@ -20,6 +20,7 @@ class Profit extends Model
     protected $fillable = [
         'uuid',
         'code',
+        'shop_code',
         'store_code',
         'order_code',
         'total_cost',

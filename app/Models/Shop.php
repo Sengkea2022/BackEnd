@@ -9,7 +9,7 @@ use App\Models\Concerns\HasCode;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Store extends Model
+class Shop extends Model
 {
     use HasQueryScopes;
 
@@ -48,7 +48,7 @@ class Store extends Model
 
     public function codePrefix(): string
     {
-        return 'ST-';
+        return 'SH-';
     }
 
     public function owner(): \Illuminate\Database\Eloquent\Relations\BelongsTo

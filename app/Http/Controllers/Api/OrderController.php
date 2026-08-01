@@ -13,18 +13,20 @@ class OrderController extends ApiResourceController
 
     protected array $with = ['store', 'currency', 'items'];
 
-    protected ?string $currentStoreIdentifier = null;
+    protected ?string $currentShopIdentifier = null;
 
     public function index(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
     {
-        $this->currentStoreIdentifier = $request->input('filter.store_code') 
+        $this->currentShopIdentifier = $request->input('filter.shop_code') 
+            ?? $request->input('filter.shop_uuid')
+            ?? $request->input('filter.store_code') 
             ?? $request->input('filter.store_uuid')
-            ?? $request->input('store_code') 
-            ?? $request->input('store_uuid');
+            ?? $request->input('shop_code') 
+            ?? $request->input('shop_uuid');
 
-        if ($this->currentStoreIdentifier) {
+        if ($this->currentShopIdentifier) {
             $filter = $request->input('filter', []);
-            unset($filter['store_code'], $filter['store_uuid']);
+            unset($filter['shop_code'], $filter['shop_uuid'], $filter['store_code'], $filter['store_uuid']);
             $request->merge(['filter' => $filter]);
         }
 
@@ -41,38 +43,44 @@ class OrderController extends ApiResourceController
         $query = parent::query();
         $user = request()?->user();
 
-        $storeIdentifier = $this->currentStoreIdentifier
+        $shopIdentifier = $this->currentShopIdentifier
+            ?? request()?->input('filter.shop_code') 
+            ?? request()?->input('filter.shop_uuid')
             ?? request()?->input('filter.store_code') 
             ?? request()?->input('filter.store_uuid')
-            ?? request()?->input('store_code') 
-            ?? request()?->input('store_uuid');
+            ?? request()?->input('shop_code') 
+            ?? request()?->input('shop_uuid');
 
-        if ($storeIdentifier) {
-            $store = \App\Models\Store::where('code', $storeIdentifier)
-                ->orWhere('uuid', $storeIdentifier)
+        if ($shopIdentifier) {
+            $shop = \App\Models\Shop::where('code', $shopIdentifier)
+                ->orWhere('uuid', $shopIdentifier)
                 ->first();
 
-            $targetStoreCode = $store ? $store->code : $storeIdentifier;
+            $targetShopCode = $shop ? $shop->code : $shopIdentifier;
 
-            $query->where(function ($q) use ($targetStoreCode, $storeIdentifier) {
-                $q->where('store_code', $targetStoreCode)
-                  ->orWhere('store_code', $storeIdentifier)
-                  ->orWhereHas('store', function ($sq) use ($targetStoreCode, $storeIdentifier) {
-                      $sq->where('code', $targetStoreCode)
-                        ->orWhere('uuid', $storeIdentifier);
+            $query->where(function ($q) use ($targetShopCode, $shopIdentifier) {
+                $q->where('shop_code', $targetShopCode)
+                  ->orWhere('shop_code', $shopIdentifier)
+                  ->orWhere('store_code', $targetShopCode)
+                  ->orWhereHas('shop', function ($sq) use ($targetShopCode, $shopIdentifier) {
+                      $sq->where('code', $targetShopCode)
+                        ->orWhere('uuid', $shopIdentifier);
                   })
-                  ->orWhereHas('items.product', function ($pq) use ($targetStoreCode, $storeIdentifier) {
-                      $pq->where('store_code', $targetStoreCode)
-                        ->orWhere('store_code', $storeIdentifier);
+                  ->orWhereHas('items.product', function ($pq) use ($targetShopCode, $shopIdentifier) {
+                      $pq->where('shop_code', $targetShopCode)
+                        ->orWhere('shop_code', $shopIdentifier)
+                        ->orWhere('store_code', $targetShopCode);
                   });
             });
         } elseif ($user && !in_array($user->role?->slug, ['superadmin', 'admin'])) {
-            if (!empty($user->store_code) && $user->store_code !== 'N/A') {
-                $userStoreCode = $user->store_code;
-                $query->where(function ($q) use ($userStoreCode) {
-                    $q->where('store_code', $userStoreCode)
-                      ->orWhereHas('items.product', function ($pq) use ($userStoreCode) {
-                          $pq->where('store_code', $userStoreCode);
+            if (!empty($user->shop_code) && $user->shop_code !== 'N/A') {
+                $userShopCode = $user->shop_code;
+                $query->where(function ($q) use ($userShopCode) {
+                    $q->where('shop_code', $userShopCode)
+                      ->orWhere('store_code', $userShopCode)
+                      ->orWhereHas('items.product', function ($pq) use ($userShopCode) {
+                          $pq->where('shop_code', $userShopCode)
+                            ->orWhere('store_code', $userShopCode);
                       });
                 });
             }
@@ -95,10 +103,11 @@ class OrderController extends ApiResourceController
                 'max:50',
                 Rule::unique('orders', 'code')->ignore($record?->id),
             ],
-            'store_code' => [
-                $record ? 'sometimes' : 'required',
+            'shop_code' => [
+                'sometimes',
+                'nullable',
                 'string',
-                'exists:stores,code',
+                'exists:shops,code',
             ],
             'customer_code' => [
                 'nullable',

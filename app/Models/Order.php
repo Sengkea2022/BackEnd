@@ -20,6 +20,7 @@ class Order extends Model
     protected $fillable = [
         'uuid',
         'code',
+        'shop_code',
         'store_code',
         'customer_code',
         'guest_link_code',
@@ -29,11 +30,15 @@ class Order extends Model
         'reason',
     ];
 
-    public function store(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function shop(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
-        return $this->belongsTo(Store::class, 'store_code', 'code');
+        return $this->belongsTo(Shop::class, 'shop_code', 'code');
     }
 
+    public function store(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Shop::class, 'shop_code', 'code');
+    }
 
     public function currency(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {

@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Models\Store;
+use App\Models\Shop;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\Rule;
 
-class StoreController extends ApiResourceController
+class ShopController extends ApiResourceController
 {
-    protected string $modelClass = Store::class;
+    protected string $modelClass = Shop::class;
     protected array $with = ['owner'];
 
     protected function query(): \Illuminate\Database\Eloquent\Builder
@@ -23,15 +23,15 @@ class StoreController extends ApiResourceController
             if ($user->role?->slug === 'store-owner') {
                 return $query->where(function ($q) use ($user) {
                     $q->where('user_code', $user->code);
-                    if (!empty($user->store_code) && $user->store_code !== 'N/A') {
-                        $q->orWhere('code', $user->store_code);
+                    if (!empty($user->shop_code) && $user->shop_code !== 'N/A') {
+                        $q->orWhere('code', $user->shop_code);
                     }
                 });
             }
-            if (!empty($user->store_code) && $user->store_code !== 'N/A') {
-                return $query->where('code', $user->store_code);
+            if (!empty($user->shop_code) && $user->shop_code !== 'N/A') {
+                return $query->where('code', $user->shop_code);
             }
-            // Allow unassigned users to view active stores for join request dropdown
+            // Allow unassigned users to view active shops for join request dropdown
             if (request()?->isMethod('get')) {
                 return $query->where('is_active', true);
             }
@@ -44,16 +44,16 @@ class StoreController extends ApiResourceController
     public function show(string $uuid): \Illuminate\Http\JsonResponse
     {
         $user = request()?->user();
-        $store = $this->resolveRecord($uuid);
+        $shop = $this->resolveRecord($uuid);
 
-        if ($user && $user->role?->slug !== 'superadmin' && $store->user_code !== $user->code) {
-            if (empty($user->store_code) || $user->store_code === 'N/A' || $user->store_code !== $store->code) {
-                return response()->json(['message' => 'Unauthorized. You are not assigned to this store.'], 403);
+        if ($user && $user->role?->slug !== 'superadmin' && $shop->user_code !== $user->code) {
+            if (empty($user->shop_code) || $user->shop_code === 'N/A' || $user->shop_code !== $shop->code) {
+                return response()->json(['message' => 'Unauthorized. You are not assigned to this shop.'], 403);
             }
         }
 
         return response()->json([
-            'data' => $store,
+            'data' => $shop,
         ]);
     }
 
@@ -63,13 +63,13 @@ class StoreController extends ApiResourceController
             'uuid' => [
                 'sometimes',
                 'uuid',
-                Rule::unique('stores', 'uuid')->ignore($record?->id),
+                Rule::unique('shops', 'uuid')->ignore($record?->id),
             ],
             'code' => [
                 'sometimes',
                 'string',
                 'max:50',
-                Rule::unique('stores', 'code')->ignore($record?->id),
+                Rule::unique('shops', 'code')->ignore($record?->id),
             ],
             'user_code' => [
                 'sometimes',
@@ -122,7 +122,7 @@ class StoreController extends ApiResourceController
     public function store(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
     {
         if (!in_array($request->user()->role?->slug, ['superadmin', 'store-owner'])) {
-            return response()->json(['message' => 'Only admins can create stores.'], 403);
+            return response()->json(['message' => 'Only admins can create shops.'], 403);
         }
 
         $validated = $request->validate($this->rules());
@@ -136,75 +136,75 @@ class StoreController extends ApiResourceController
 
         unset($validated['manager_id'], $validated['staff_ids']);
 
-        /** @var Store $store */
-        $store = Store::query()->create($validated);
+        /** @var Shop $shop */
+        $shop = Shop::query()->create($validated);
 
-        // Generate default store-specific roles
+        // Generate default shop-specific roles
         \App\Models\Role::create([
             'name' => 'Manager',
             'slug' => 'manager',
-            'store_code' => $store->code,
+            'shop_code' => $shop->code,
         ]);
         
         \App\Models\Role::create([
             'name' => 'Staff',
             'slug' => 'staff',
-            'store_code' => $store->code,
+            'shop_code' => $shop->code,
         ]);
 
         if ($managerId) {
             \App\Models\User::query()->where('id', $managerId)->update([
-                'store_code' => $store->code,
+                'shop_code' => $shop->code,
             ]);
         }
 
         if (!empty($staffIds)) {
             \App\Models\User::query()->whereIn('id', $staffIds)->update([
-                'store_code' => $store->code,
+                'shop_code' => $shop->code,
             ]);
         }
 
         return response()->json([
-            'data' => $store->fresh($this->with),
+            'data' => $shop->fresh($this->with),
         ], 201);
     }
 
     public function update(\Illuminate\Http\Request $request, string $uuid): \Illuminate\Http\JsonResponse
     {
-        $store = $this->resolveRecord($uuid);
-        $validated = $request->validate($this->rules($store));
+        $shop = $this->resolveRecord($uuid);
+        $validated = $request->validate($this->rules($shop));
 
         $managerId = $validated['manager_id'] ?? null;
         $staffIds = $validated['staff_ids'] ?? null;
 
         unset($validated['manager_id'], $validated['staff_ids']);
 
-        $store->update($validated);
+        $shop->update($validated);
 
         if ($managerId) {
             \App\Models\User::query()->where('id', $managerId)->update([
-                'store_code' => $store->code,
+                'shop_code' => $shop->code,
             ]);
         }
 
         if (is_array($staffIds)) {
             \App\Models\User::query()
-                ->where('store_code', $store->code)
+                ->where('shop_code', $shop->code)
                 ->whereHas('role', function ($q) {
                     $q->where('slug', 'staff');
                 })
                 ->whereNotIn('id', $staffIds)
-                ->update(['store_code' => 'N/A']);
+                ->update(['shop_code' => 'N/A']);
 
             if (!empty($staffIds)) {
                 \App\Models\User::query()->whereIn('id', $staffIds)->update([
-                    'store_code' => $store->code,
+                    'shop_code' => $shop->code,
                 ]);
             }
         }
 
         return response()->json([
-            'data' => $store->fresh($this->with),
+            'data' => $shop->fresh($this->with),
         ]);
     }
 }

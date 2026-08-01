@@ -24,10 +24,13 @@ class ProfitController extends ApiResourceController
                 'max:50',
                 Rule::unique('profits', 'code')->ignore($record?->id),
             ],
-            'store_code' => [
-                $record ? 'sometimes' : 'required',
+            'shop_code' => [
+                'sometimes',
                 'string',
-                'exists:stores,code',
+            ],
+            'store_code' => [
+                'sometimes',
+                'string',
             ],
             'order_code' => [
                 $record ? 'sometimes' : 'required',

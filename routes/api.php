@@ -39,7 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
     require __DIR__.'/api/user.php';
     require __DIR__.'/api/currencies.php';
     require __DIR__.'/api/exchange_rates.php';
-    require __DIR__.'/api/stores.php';
+    require __DIR__.'/api/shops.php';
     require __DIR__.'/api/guest_links.php';
     require __DIR__.'/api/categories.php';
     require __DIR__.'/api/products.php';

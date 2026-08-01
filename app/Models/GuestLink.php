@@ -20,6 +20,7 @@ class GuestLink extends Model
     protected $fillable = [
         'uuid',
         'code',
+        'shop_code',
         'store_code',
         'token',
         'label',
@@ -39,8 +40,13 @@ class GuestLink extends Model
         ];
     }
 
+    public function shop(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Shop::class, 'shop_code', 'code');
+    }
+
     public function store(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
-        return $this->belongsTo(Store::class, 'store_code', 'code');
+        return $this->belongsTo(Shop::class, 'shop_code', 'code');
     }
 }

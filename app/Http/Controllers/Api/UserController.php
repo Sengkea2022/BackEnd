@@ -3,18 +3,17 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Shop;
+use App\Models\User;
+use App\Models\Role;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
     public function showCurrent(Request $request): JsonResponse
     {
-        $user = $request->user();
-        if ($user) {
-            $user->load(['role.permissions', 'store']);
-        }
+        $user = $request->user()->load(['role.permissions', 'shop']);
 
         return response()->json([
             'user' => $user,
@@ -23,49 +22,47 @@ class UserController extends Controller
 
     public function updateCurrent(Request $request): JsonResponse
     {
-        $user = $request->user();
-
         $validated = $request->validate([
-            'name' => ['sometimes', 'string', 'max:255'],
-            'phone' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'department' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'name' => 'sometimes|string|max:255',
+            'phone' => 'sometimes|nullable|string|max:50',
+            'bio' => 'sometimes|nullable|string',
+            'locale' => 'sometimes|string|max:10',
         ]);
 
-        $user?->update($validated);
-
-        if ($user) {
-            $user->load(['role.permissions', 'store']);
-        }
+        $user = $request->user();
+        $user->update($validated);
 
         return response()->json([
-            'user' => $user,
+            'user' => $user->fresh(['role.permissions', 'shop']),
         ]);
     }
 
     public function getAssignablePersonnel(): JsonResponse
     {
-        $managers = \App\Models\User::query()
+        $managers = User::query()
             ->whereHas('role', function ($query) {
                 $query->where('slug', 'manager');
             })
-            ->get(['id', 'name', 'email', 'store_code']);
+            ->get(['id', 'name', 'email', 'shop_code', 'store_code']);
 
-        $staff = \App\Models\User::query()
+        $staff = User::query()
             ->whereHas('role', function ($query) {
                 $query->where('slug', 'staff');
             })
-            ->get(['id', 'name', 'email', 'store_code']);
+            ->get(['id', 'name', 'email', 'shop_code', 'store_code']);
 
         return response()->json([
             'managers' => $managers,
             'staff' => $staff,
         ]);
     }
+
     public function getStoreOwners(): JsonResponse
     {
-        $owners = \App\Models\User::query()
+        $owners = User::query()
             ->whereHas('role', function ($query) {
-                $query->where('slug', 'store-owner');
+                $query->where('slug', 'store-owner')
+                      ->orWhere('slug', 'shop-owner');
             })
             ->get(['id', 'code', 'name', 'email']);
 
@@ -76,18 +73,26 @@ class UserController extends Controller
 
     public function getStoreDepartments(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'store_uuid' => 'required|uuid|exists:stores,uuid'
-        ]);
+        $shopUuid = $request->input('shop_uuid') ?? $request->input('store_uuid');
+        
+        if (!$shopUuid) {
+            return response()->json(['message' => 'shop_uuid is required'], 422);
+        }
 
-        $store = \App\Models\Store::where('uuid', $validated['store_uuid'])->firstOrFail();
+        $shop = Shop::where('uuid', $shopUuid)->firstOrFail();
 
-        $userDepts = \App\Models\User::where('store_code', $store->code)
+        $userDepts = User::where(function ($q) use ($shop) {
+                $q->where('shop_code', $shop->code)
+                  ->orWhere('store_code', $shop->code);
+            })
             ->whereNotNull('department')
             ->where('department', '!=', '')
             ->pluck('department');
 
-        $roleDepts = \App\Models\Role::where('store_code', $store->code)
+        $roleDepts = Role::where(function ($q) use ($shop) {
+                $q->where('shop_code', $shop->code)
+                  ->orWhere('store_code', $shop->code);
+            })
             ->whereNotNull('department')
             ->where('department', '!=', '')
             ->pluck('department');
@@ -101,33 +106,40 @@ class UserController extends Controller
 
     public function indexStoreStaff(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'store_uuid' => 'required|uuid|exists:stores,uuid',
-            'department' => 'sometimes|nullable|string',
-        ]);
+        $shopUuid = $request->input('shop_uuid') ?? $request->input('store_uuid');
+        
+        if (!$shopUuid) {
+            return response()->json(['message' => 'shop_uuid is required'], 422);
+        }
 
-        $store = \App\Models\Store::where('uuid', $validated['store_uuid'])->firstOrFail();
+        $department = $request->input('department');
+
+        $shop = Shop::where('uuid', $shopUuid)->firstOrFail();
         
         $user = $request->user();
-        $isOwner = $store->user_code === $user->code;
+        $isOwner = $shop->user_code === $user->code;
         $hasPermission = $user->role && $user->role->permissions()->where('slug', 'edit-users')->exists();
+        $userShopCode = $user->shop_code ?? $user->store_code;
         
-        if (!$isOwner && (!$hasPermission || $user->store_code !== $store->code)) {
-            if ($user->store_code !== $store->code && $user->role?->slug !== 'superadmin') {
+        if (!$isOwner && (!$hasPermission || $userShopCode !== $shop->code)) {
+            if ($userShopCode !== $shop->code && $user->role?->slug !== 'superadmin') {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
         }
 
-        $query = \App\Models\User::with('role')
-            ->where('store_code', $store->code);
+        $query = User::with('role')
+            ->where(function ($q) use ($shop) {
+                $q->where('shop_code', $shop->code)
+                  ->orWhere('store_code', $shop->code);
+            });
 
         // Manager Department Scope check (role department takes precedence over user department)
         $managerDept = $user->role?->department ?? $user->department;
 
         if (!$isOwner && $user->role?->slug !== 'superadmin' && !empty($managerDept)) {
             $query->where('department', $managerDept);
-        } elseif (!empty($validated['department'])) {
-            $query->where('department', $validated['department']);
+        } elseif (!empty($department)) {
+            $query->where('department', $department);
         }
 
         $staff = $query->get();
@@ -145,19 +157,20 @@ class UserController extends Controller
             'active_status' => 'sometimes|string|in:active,inactive',
         ]);
 
-        $targetUser = \App\Models\User::with('role')->where('uuid', $uuid)->firstOrFail();
+        $targetUser = User::with('role')->where('uuid', $uuid)->firstOrFail();
         $user = $request->user();
 
-        $storeCode = $targetUser->store_code;
-        if (!$storeCode) {
-            return response()->json(['message' => 'User is not assigned to any store.'], 400);
+        $shopCode = $targetUser->shop_code ?? $targetUser->store_code;
+        if (!$shopCode) {
+            return response()->json(['message' => 'User is not assigned to any shop.'], 400);
         }
 
-        $store = \App\Models\Store::where('code', $storeCode)->firstOrFail();
-        $isOwner = $store->user_code === $user->code;
+        $shop = Shop::where('code', $shopCode)->firstOrFail();
+        $isOwner = $shop->user_code === $user->code;
         $hasPermission = $user->role && $user->role->permissions()->where('slug', 'edit-users')->exists();
+        $userShopCode = $user->shop_code ?? $user->store_code;
 
-        if (!$isOwner && (!$hasPermission || $user->store_code !== $storeCode)) {
+        if (!$isOwner && (!$hasPermission || $userShopCode !== $shopCode)) {
             return response()->json(['message' => 'Unauthorized to update staff.'], 403);
         }
 
@@ -182,7 +195,7 @@ class UserController extends Controller
         }
 
         if (array_key_exists('role_id', $validated) && $validated['role_id']) {
-            $newRole = \App\Models\Role::find($validated['role_id']);
+            $newRole = Role::find($validated['role_id']);
             if ($newRole && !$isOwner && $user->role?->slug !== 'superadmin' && $newRole->level <= $userLevel) {
                 return response()->json(['message' => 'You cannot assign a role rank equal to or higher than your own.'], 403);
             }
@@ -198,27 +211,28 @@ class UserController extends Controller
 
     public function removeStore(Request $request, $uuid): JsonResponse
     {
-        $targetUser = \App\Models\User::with('role')->where('uuid', $uuid)->firstOrFail();
+        $targetUser = User::with('role')->where('uuid', $uuid)->firstOrFail();
         $user = $request->user();
 
-        // If the user is removing themselves (Leave Store)
+        // If the user is removing themselves (Leave Shop)
         if ($targetUser->id === $user->id) {
-            $targetUser->update(['store_code' => null, 'role_id' => null]);
-            return response()->json(['message' => 'You have left the store.']);
+            $targetUser->update(['shop_code' => null, 'store_code' => null, 'role_id' => null]);
+            return response()->json(['message' => 'You have left the shop.']);
         }
 
         // Otherwise, it's a "Kick Out" attempt
-        $storeCode = $targetUser->store_code;
-        if (!$storeCode) {
-            return response()->json(['message' => 'User is not in any store.'], 400);
+        $shopCode = $targetUser->shop_code ?? $targetUser->store_code;
+        if (!$shopCode) {
+            return response()->json(['message' => 'User is not in any shop.'], 400);
         }
 
-        $store = \App\Models\Store::where('code', $storeCode)->firstOrFail();
-        $isOwner = $store->user_code === $user->code;
+        $shop = Shop::where('code', $shopCode)->firstOrFail();
+        $isOwner = $shop->user_code === $user->code;
         
         $hasPermission = $user->role && $user->role->permissions()->where('slug', 'edit-users')->exists();
+        $userShopCode = $user->shop_code ?? $user->store_code;
         
-        if (!$isOwner && (!$hasPermission || $user->store_code !== $storeCode)) {
+        if (!$isOwner && (!$hasPermission || $userShopCode !== $shopCode)) {
             return response()->json(['message' => 'Unauthorized to kick out staff.'], 403);
         }
 
@@ -238,7 +252,7 @@ class UserController extends Controller
             }
         }
 
-        $targetUser->update(['store_code' => null, 'role_id' => null]);
-        return response()->json(['message' => 'User has been removed from the store.']);
+        $targetUser->update(['shop_code' => null, 'store_code' => null, 'role_id' => null]);
+        return response()->json(['message' => 'User has been removed from the shop.']);
     }
 }

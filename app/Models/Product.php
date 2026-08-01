@@ -20,6 +20,7 @@ class Product extends Model
     protected $fillable = [
         'uuid',
         'code',
+        'shop_code',
         'store_code',
         'category_code',
         'product_name',
@@ -48,9 +49,14 @@ class Product extends Model
         return 4;
     }
 
+    public function shop(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Shop::class, 'shop_code', 'code');
+    }
+
     public function store(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
-        return $this->belongsTo(Store::class, 'store_code', 'code');
+        return $this->belongsTo(Shop::class, 'shop_code', 'code');
     }
 
     public function category(): \Illuminate\Database\Eloquent\Relations\BelongsTo

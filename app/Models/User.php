@@ -46,7 +46,7 @@ class User extends Authenticatable
         'code',
         'phone',
         'date_of_birth',
-        'store_code',
+        'shop_code',
         'country',
         'state',
         'city',
@@ -96,11 +96,11 @@ class User extends Authenticatable
 
 
     /**
-     * The store that belongs to the user.
+     * The shop that belongs to the user.
      */
-    public function store(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function shop(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
-        return $this->belongsTo(Store::class, 'store_code', 'code');
+        return $this->belongsTo(Shop::class, 'shop_code', 'code');
     }
 
     /**

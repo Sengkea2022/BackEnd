@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\GuestLink;
-use App\Models\Store;
+use App\Models\Shop;
 use App\Models\Product;
 use App\Models\Category;
 use App\Models\Price;
@@ -125,7 +125,7 @@ class GuestLinkController extends ApiResourceController
             ], 410);
         }
 
-        $products = Product::where('store_code', $store->code)
+        $products = Product::where('shop_code', $store->code)
             ->with(['prices', 'category', 'stocks'])
             ->get();
 
@@ -154,19 +154,19 @@ class GuestLinkController extends ApiResourceController
             'note' => 'nullable|string',
         ]);
 
-        $storeIdentifier = $request->input('store_uuid') ?? $request->input('store_code') ?? $request->input('store');
+        $shopIdentifier = $request->input('shop_uuid') ?? $request->input('shop_code') ?? $request->input('store_uuid') ?? $request->input('store_code') ?? $request->input('store');
 
-        if (! $storeIdentifier) {
-            return response()->json(['message' => 'Store identifier (store_uuid or store_code) is required.'], 422);
+        if (! $shopIdentifier) {
+            return response()->json(['message' => 'Shop identifier (shop_uuid or shop_code) is required.'], 422);
         }
 
-        $store = Store::where('uuid', $storeIdentifier)->orWhere('code', $storeIdentifier)->first();
+        $shop = Shop::where('uuid', $shopIdentifier)->orWhere('code', $shopIdentifier)->first();
 
-        if (! $store) {
-            return response()->json(['message' => 'Store not found.'], 440);
+        if (! $shop) {
+            return response()->json(['message' => 'Shop not found.'], 440);
         }
 
-        $storeCode = $store->code;
+        $shopCode = $shop->code;
         $customerName = $validated['customer_name'] ?? 'Guest Customer';
         $customerPhone = $validated['customer_phone'] ?? null;
         $currencyCode = $validated['currency_code'] ?? 'USD';
@@ -211,7 +211,8 @@ class GuestLinkController extends ApiResourceController
         $order = Order::create([
             'uuid' => (string) Str::uuid(),
             'code' => $orderCode,
-            'store_code' => $storeCode,
+            'shop_code' => $shopCode,
+            'store_code' => $shopCode,
             'customer_code' => 'GUEST',
             'guest_link_code' => $deviceToken,
             'currency_code' => $currencyCode,
