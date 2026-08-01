@@ -18,11 +18,11 @@ class CurrencyController extends ApiResourceController
                 'uuid',
                 Rule::unique('currencies', 'uuid')->ignore($record?->id),
             ],
-            'currency_no' => [
+            'code' => [
                 'sometimes',
                 'string',
                 'max:50',
-                Rule::unique('currencies', 'currency_no')->ignore($record?->id),
+                Rule::unique('currencies', 'code')->ignore($record?->id),
             ],
             'country_code' => [
                 $record ? 'sometimes' : 'required',

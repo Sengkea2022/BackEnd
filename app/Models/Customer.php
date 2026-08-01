@@ -12,7 +12,7 @@ class Customer extends Model
 {
     use HasFactory, HasCode, HasUuid, HasQueryScopes;
 
-    protected array $searchable = ['code'];
+    protected array $searchable = ['code', 'name', 'phone', 'email'];
 
     /**
      * @var list<string>
@@ -26,4 +26,18 @@ class Customer extends Model
         'note',
     ];
 
+    public function codePrefix(): string
+    {
+        return 'CUST-';
+    }
+
+    public function codePadding(): int
+    {
+        return 4;
+    }
+
+    public function orders(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Order::class, 'customer_code', 'code');
+    }
 }

@@ -18,15 +18,15 @@ class NotificationController extends ApiResourceController
                 'uuid',
                 Rule::unique('notifications', 'uuid')->ignore($record?->id),
             ],
-            'user_uuid' => [
+            'user_code' => [
                 $record ? 'sometimes' : 'required',
-                'uuid',
-                'exists:users,uuid',
+                'string',
+                'exists:users,code',
             ],
-            'order_uuid' => [
+            'order_code' => [
                 $record ? 'sometimes' : 'required',
-                'uuid',
-                'exists:orders,uuid',
+                'string',
+                'exists:orders,code',
             ],
             'type' => [
                 $record ? 'sometimes' : 'required',

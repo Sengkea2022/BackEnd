@@ -18,11 +18,11 @@ class CategoryController extends ApiResourceController
                 'uuid',
                 Rule::unique('categories', 'uuid')->ignore($record?->id),
             ],
-            'category_no' => [
+            'code' => [
                 'sometimes',
                 'string',
                 'max:50',
-                Rule::unique('categories', 'category_no')->ignore($record?->id),
+                Rule::unique('categories', 'code')->ignore($record?->id),
             ],
             'name' => [
                 $record ? 'sometimes' : 'required',

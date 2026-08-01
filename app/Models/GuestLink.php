@@ -39,4 +39,8 @@ class GuestLink extends Model
         ];
     }
 
+    public function store(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Store::class, 'store_code', 'code');
+    }
 }

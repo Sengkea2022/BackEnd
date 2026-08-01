@@ -18,26 +18,26 @@ class OrderItemController extends ApiResourceController
                 'uuid',
                 Rule::unique('order_items', 'uuid')->ignore($record?->id),
             ],
-            'order_item_no' => [
+            'code' => [
                 'sometimes',
                 'string',
                 'max:50',
-                Rule::unique('order_items', 'order_item_no')->ignore($record?->id),
+                Rule::unique('order_items', 'code')->ignore($record?->id),
             ],
-            'order_uuid' => [
+            'order_code' => [
                 $record ? 'sometimes' : 'required',
-                'uuid',
-                'exists:orders,uuid',
+                'string',
+                'exists:orders,code',
             ],
-            'product_uuid' => [
+            'product_code' => [
                 $record ? 'sometimes' : 'required',
-                'uuid',
-                'exists:products,uuid',
+                'string',
+                'exists:products,code',
             ],
-            'price_uuid' => [
+            'price_code' => [
                 $record ? 'sometimes' : 'required',
-                'uuid',
-                'exists:prices,uuid',
+                'string',
+                'exists:prices,code',
             ],
             'qty' => [
                 'sometimes',

@@ -27,6 +27,7 @@ class Store extends Model
         'name',
         'description',
         'logo_path',
+        'theme_color',
         'is_active',
         'country',
         'state',

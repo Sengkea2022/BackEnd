@@ -31,6 +31,92 @@ class ProductController extends ApiResourceController
         return parent::index($request);
     }
 
+    public function store(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
+    {
+        $rules = array_merge($this->rules(), [
+            'price' => 'sometimes|nullable|numeric',
+            'stock' => 'sometimes|nullable|integer',
+        ]);
+        $validated = $request->validate($rules);
+
+        $product = Product::create($validated);
+
+        $priceVal = (float) ($request->input('price') ?? 0);
+        \App\Models\Price::create([
+            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'code' => 'PRC-' . $product->code,
+            'product_code' => $product->code,
+            'currency_code' => 'USD',
+            'retail_unit_price' => $priceVal,
+            'wholesale_unit_price' => $priceVal,
+            'is_active' => true,
+        ]);
+
+        if ($request->has('stock')) {
+            \App\Models\Stock::create([
+                'uuid' => (string) \Illuminate\Support\Str::uuid(),
+                'code' => 'STK-' . $product->code,
+                'store_code' => $product->store_code,
+                'product_code' => $product->code,
+                'qty' => (int) $request->input('stock', 0),
+            ]);
+        }
+
+        return response()->json([
+            'data' => $product->fresh($this->with),
+        ], 201);
+    }
+
+    public function update(\Illuminate\Http\Request $request, string $uuid): \Illuminate\Http\JsonResponse
+    {
+        $product = $this->resolveRecord($uuid);
+        $rules = array_merge($this->rules($product), [
+            'price' => 'sometimes|nullable|numeric',
+            'stock' => 'sometimes|nullable|integer',
+        ]);
+        $validated = $request->validate($rules);
+
+        $product->update($validated);
+
+        if ($request->has('price')) {
+            $priceVal = (float) $request->input('price');
+            $price = \App\Models\Price::where('product_code', $product->code)->first();
+            if ($price) {
+                $price->update(['retail_unit_price' => $priceVal, 'wholesale_unit_price' => $priceVal]);
+            } else {
+                \App\Models\Price::create([
+                    'uuid' => (string) \Illuminate\Support\Str::uuid(),
+                    'code' => 'PRC-' . $product->code,
+                    'product_code' => $product->code,
+                    'currency_code' => 'USD',
+                    'retail_unit_price' => $priceVal,
+                    'wholesale_unit_price' => $priceVal,
+                    'is_active' => true,
+                ]);
+            }
+        }
+
+        if ($request->has('stock')) {
+            $stockVal = (int) $request->input('stock');
+            $stock = \App\Models\Stock::where('product_code', $product->code)->first();
+            if ($stock) {
+                $stock->update(['qty' => $stockVal]);
+            } else {
+                \App\Models\Stock::create([
+                    'uuid' => (string) \Illuminate\Support\Str::uuid(),
+                    'code' => 'STK-' . $product->code,
+                    'store_code' => $product->store_code,
+                    'product_code' => $product->code,
+                    'qty' => $stockVal,
+                ]);
+            }
+        }
+
+        return response()->json([
+            'data' => $product->fresh($this->with),
+        ]);
+    }
+
     protected function rules(?Model $record = null): array
     {
         return [
@@ -39,21 +125,21 @@ class ProductController extends ApiResourceController
                 'uuid',
                 Rule::unique('products', 'uuid')->ignore($record?->id),
             ],
-            'product_no' => [
+            'code' => [
                 'sometimes',
                 'string',
                 'max:50',
-                Rule::unique('products', 'product_no')->ignore($record?->id),
+                Rule::unique('products', 'code')->ignore($record?->id),
             ],
-            'store_uuid' => [
+            'store_code' => [
                 $record ? 'sometimes' : 'required',
-                'uuid',
-                'exists:stores,uuid',
+                'string',
+                'exists:stores,code',
             ],
-            'category_uuid' => [
+            'category_code' => [
                 $record ? 'sometimes' : 'required',
-                'uuid',
-                'exists:categories,uuid',
+                'string',
+                'exists:categories,code',
             ],
             'product_name' => [
                 $record ? 'sometimes' : 'required',

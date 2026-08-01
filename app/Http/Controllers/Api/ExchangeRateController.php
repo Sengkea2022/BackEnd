@@ -18,23 +18,23 @@ class ExchangeRateController extends ApiResourceController
                 'uuid',
                 Rule::unique('exchange_rates', 'uuid')->ignore($record?->id),
             ],
-            'exchange_no' => [
+            'code' => [
                 'sometimes',
                 'string',
                 'max:50',
-                Rule::unique('exchange_rates', 'exchange_no')->ignore($record?->id),
+                Rule::unique('exchange_rates', 'code')->ignore($record?->id),
             ],
-            'from_currency_uuid' => [
+            'from_currency_code' => [
                 $record ? 'sometimes' : 'required',
-                'uuid',
-                'exists:currencies,uuid',
-                'different:to_currency_uuid',
+                'string',
+                'exists:currencies,code',
+                'different:to_currency_code',
             ],
-            'to_currency_uuid' => [
+            'to_currency_code' => [
                 $record ? 'sometimes' : 'required',
-                'uuid',
-                'exists:currencies,uuid',
-                'different:from_currency_uuid',
+                'string',
+                'exists:currencies,code',
+                'different:from_currency_code',
             ],
             'rate' => [
                 $record ? 'sometimes' : 'required',

@@ -180,7 +180,7 @@ class AuthController extends Controller
             'password' => null,
             'phone' => '0' . substr($googleUser->getId(), -10),
             'date_of_birth' => '2000-01-01',
-            'store_no' => 'N/A',
+            'store_code' => 'N/A',
             'position' => \App\Enums\Positions::CASHIER,
             'role_id' => $staffRole?->id,
             'department' => 'Sales',

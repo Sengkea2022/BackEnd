@@ -19,6 +19,12 @@ Route::options('/{any}', function () {
 
 require __DIR__.'/api/auth.php';
 
+// ── Public Guest Menu & Order Submission (No Auth Needed) ──────────────────────
+Route::get('/public/guest-links/{token}', [\App\Http\Controllers\Api\GuestLinkController::class, 'resolveToken']);
+Route::get('/public/guest-menu/{identifier}', [\App\Http\Controllers\Api\GuestLinkController::class, 'resolveToken']);
+Route::get('/public/guest-orders', [\App\Http\Controllers\Api\GuestLinkController::class, 'getGuestOrderHistory']);
+Route::post('/public/orders', [\App\Http\Controllers\Api\GuestLinkController::class, 'placeGuestOrder'])->middleware('throttle:3,1');
+
 // ── Cambodia location (public — no auth needed) ──────────────────────────────
 Route::prefix('kh-location')->group(function () {
     Route::get('/provinces',                         [\App\Http\Controllers\Api\KhLocationController::class, 'provinces']);
@@ -39,7 +45,6 @@ Route::middleware('auth:sanctum')->group(function () {
     require __DIR__.'/api/products.php';
     require __DIR__.'/api/prices.php';
     require __DIR__.'/api/stocks.php';
-    require __DIR__.'/api/customers.php';
     require __DIR__.'/api/orders.php';
     require __DIR__.'/api/order_items.php';
     require __DIR__.'/api/transactions.php';

@@ -18,16 +18,16 @@ class TransactionController extends ApiResourceController
                 'uuid',
                 Rule::unique('transactions', 'uuid')->ignore($record?->id),
             ],
-            'transaction_no' => [
+            'code' => [
                 'sometimes',
                 'string',
                 'max:50',
-                Rule::unique('transactions', 'transaction_no')->ignore($record?->id),
+                Rule::unique('transactions', 'code')->ignore($record?->id),
             ],
-            'order_uuid' => [
+            'order_code' => [
                 $record ? 'sometimes' : 'required',
-                'uuid',
-                'exists:orders,uuid',
+                'string',
+                'exists:orders,code',
             ],
             'type' => [
                 $record ? 'sometimes' : 'required',

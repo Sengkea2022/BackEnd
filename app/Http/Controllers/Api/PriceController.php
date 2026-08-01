@@ -18,21 +18,21 @@ class PriceController extends ApiResourceController
                 'uuid',
                 Rule::unique('prices', 'uuid')->ignore($record?->id),
             ],
-            'price_no' => [
+            'code' => [
                 'sometimes',
                 'string',
                 'max:50',
-                Rule::unique('prices', 'price_no')->ignore($record?->id),
+                Rule::unique('prices', 'code')->ignore($record?->id),
             ],
-            'product_uuid' => [
+            'product_code' => [
                 $record ? 'sometimes' : 'required',
-                'uuid',
-                'exists:products,uuid',
+                'string',
+                'exists:products,code',
             ],
-            'currency_uuid' => [
+            'currency_code' => [
                 $record ? 'sometimes' : 'required',
-                'uuid',
-                'exists:currencies,uuid',
+                'string',
+                'exists:currencies,code',
             ],
             'cost_price' => [
                 'nullable',

@@ -18,22 +18,22 @@ class ProfitController extends ApiResourceController
                 'uuid',
                 Rule::unique('profits', 'uuid')->ignore($record?->id),
             ],
-            'profit_no' => [
+            'code' => [
                 'sometimes',
                 'string',
                 'max:50',
-                Rule::unique('profits', 'profit_no')->ignore($record?->id),
+                Rule::unique('profits', 'code')->ignore($record?->id),
             ],
-            'store_uuid' => [
+            'store_code' => [
                 $record ? 'sometimes' : 'required',
-                'uuid',
-                'exists:stores,uuid',
+                'string',
+                'exists:stores,code',
             ],
-            'order_uuid' => [
+            'order_code' => [
                 $record ? 'sometimes' : 'required',
-                'uuid',
-                Rule::exists('orders', 'uuid'),
-                Rule::unique('profits', 'order_uuid')->ignore($record?->id),
+                'string',
+                Rule::exists('orders', 'code'),
+                Rule::unique('profits', 'order_code')->ignore($record?->id),
             ],
             'total_cost' => [
                 $record ? 'sometimes' : 'required',

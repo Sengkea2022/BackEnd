@@ -91,6 +91,12 @@ class StoreController extends ApiResourceController
                 'string',
                 'max:500',
             ],
+            'theme_color' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:50',
+            ],
             'is_active' => [
                 'sometimes',
                 'boolean',

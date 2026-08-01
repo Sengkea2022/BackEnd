@@ -48,13 +48,13 @@ class UserController extends Controller
             ->whereHas('role', function ($query) {
                 $query->where('slug', 'manager');
             })
-            ->get(['id', 'name', 'email', 'store_no']);
+            ->get(['id', 'name', 'email', 'store_code']);
 
         $staff = \App\Models\User::query()
             ->whereHas('role', function ($query) {
                 $query->where('slug', 'staff');
             })
-            ->get(['id', 'name', 'email', 'store_no']);
+            ->get(['id', 'name', 'email', 'store_code']);
 
         return response()->json([
             'managers' => $managers,

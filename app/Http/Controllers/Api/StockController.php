@@ -18,21 +18,21 @@ class StockController extends ApiResourceController
                 'uuid',
                 Rule::unique('stocks', 'uuid')->ignore($record?->id),
             ],
-            'stock_no' => [
+            'code' => [
                 'sometimes',
                 'string',
                 'max:50',
-                Rule::unique('stocks', 'stock_no')->ignore($record?->id),
+                Rule::unique('stocks', 'code')->ignore($record?->id),
             ],
-            'store_uuid' => [
+            'store_code' => [
                 $record ? 'sometimes' : 'required',
-                'uuid',
-                'exists:stores,uuid',
+                'string',
+                'exists:stores,code',
             ],
-            'product_uuid' => [
+            'product_code' => [
                 $record ? 'sometimes' : 'required',
-                'uuid',
-                'exists:products,uuid',
+                'string',
+                'exists:products,code',
             ],
             'qty' => [
                 'sometimes',
