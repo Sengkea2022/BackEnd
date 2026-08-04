@@ -11,7 +11,7 @@ class OrderController extends ApiResourceController
 {
     protected string $modelClass = Order::class;
 
-    protected array $with = ['store', 'currency', 'items'];
+    protected array $with = ['shop', 'currency', 'items'];
 
     protected ?string $currentShopIdentifier = null;
 
@@ -30,7 +30,27 @@ class OrderController extends ApiResourceController
             $request->merge(['filter' => $filter]);
         }
 
-        return parent::index($request);
+        $query = $this->query();
+        $pendingCount = (clone $query)->where('status', 'pending')->count();
+        $completedCount = (clone $query)->where('status', 'completed')->count();
+
+        $response = parent::index($request);
+        $data = $response->getData(true);
+
+        if (isset($data['meta']) && is_array($data['meta'])) {
+            $data['meta']['pending_count'] = $pendingCount;
+            $data['meta']['completed_count'] = $completedCount;
+            return response()->json($data);
+        }
+
+        return response()->json([
+            'data' => $data['data'] ?? $data,
+            'meta' => [
+                'total' => is_array($data) ? count($data) : 0,
+                'pending_count' => $pendingCount,
+                'completed_count' => $completedCount,
+            ]
+        ]);
     }
 
     protected function resolveRecord(string $uuid): Model
@@ -61,15 +81,13 @@ class OrderController extends ApiResourceController
             $query->where(function ($q) use ($targetShopCode, $shopIdentifier) {
                 $q->where('shop_code', $targetShopCode)
                   ->orWhere('shop_code', $shopIdentifier)
-                  ->orWhere('store_code', $targetShopCode)
                   ->orWhereHas('shop', function ($sq) use ($targetShopCode, $shopIdentifier) {
                       $sq->where('code', $targetShopCode)
                         ->orWhere('uuid', $shopIdentifier);
                   })
                   ->orWhereHas('items.product', function ($pq) use ($targetShopCode, $shopIdentifier) {
                       $pq->where('shop_code', $targetShopCode)
-                        ->orWhere('shop_code', $shopIdentifier)
-                        ->orWhere('store_code', $targetShopCode);
+                        ->orWhere('shop_code', $shopIdentifier);
                   });
             });
         } elseif ($user && !in_array($user->role?->slug, ['superadmin', 'admin'])) {
@@ -77,10 +95,8 @@ class OrderController extends ApiResourceController
                 $userShopCode = $user->shop_code;
                 $query->where(function ($q) use ($userShopCode) {
                     $q->where('shop_code', $userShopCode)
-                      ->orWhere('store_code', $userShopCode)
                       ->orWhereHas('items.product', function ($pq) use ($userShopCode) {
-                          $pq->where('shop_code', $userShopCode)
-                            ->orWhere('store_code', $userShopCode);
+                          $pq->where('shop_code', $userShopCode);
                       });
                 });
             }

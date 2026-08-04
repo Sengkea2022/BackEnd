@@ -19,7 +19,8 @@ Route::options('/{any}', function () {
 
 require __DIR__.'/api/auth.php';
 
-// ── Public Guest Menu & Order Submission (No Auth Needed) ──────────────────────
+// ── Public Guest Menu, System Settings & Order Submission (No Auth Needed) ────
+Route::get('/public/system-settings', [\App\Http\Controllers\Api\SystemSettingController::class, 'publicIndex']);
 Route::get('/public/guest-links/{token}', [\App\Http\Controllers\Api\GuestLinkController::class, 'resolveToken']);
 Route::get('/public/guest-menu/{identifier}', [\App\Http\Controllers\Api\GuestLinkController::class, 'resolveToken']);
 Route::get('/public/guest-orders', [\App\Http\Controllers\Api\GuestLinkController::class, 'getGuestOrderHistory']);
@@ -36,6 +37,8 @@ Route::prefix('kh-location')->group(function () {
 
 Route::middleware('auth:sanctum')->group(function () {
 
+    Route::put('/system-settings', [\App\Http\Controllers\Api\SystemSettingController::class, 'update']);
+    Route::post('/system-settings', [\App\Http\Controllers\Api\SystemSettingController::class, 'update']);
     require __DIR__.'/api/user.php';
     require __DIR__.'/api/currencies.php';
     require __DIR__.'/api/exchange_rates.php';

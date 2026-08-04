@@ -21,7 +21,6 @@ class Order extends Model
         'uuid',
         'code',
         'shop_code',
-        'store_code',
         'customer_code',
         'guest_link_code',
         'currency_code',

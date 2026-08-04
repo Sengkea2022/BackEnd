@@ -21,7 +21,6 @@ class GuestLink extends Model
         'uuid',
         'code',
         'shop_code',
-        'store_code',
         'token',
         'label',
         'qr_path',

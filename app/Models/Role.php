@@ -18,7 +18,6 @@ class Role extends Model
         'name',
         'slug',
         'shop_code',
-        'store_code',
         'level',
         'department',
     ];

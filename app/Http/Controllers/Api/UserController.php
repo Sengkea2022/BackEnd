@@ -43,13 +43,13 @@ class UserController extends Controller
             ->whereHas('role', function ($query) {
                 $query->where('slug', 'manager');
             })
-            ->get(['id', 'name', 'email', 'shop_code', 'store_code']);
+            ->get(['id', 'name', 'email', 'shop_code']);
 
         $staff = User::query()
             ->whereHas('role', function ($query) {
                 $query->where('slug', 'staff');
             })
-            ->get(['id', 'name', 'email', 'shop_code', 'store_code']);
+            ->get(['id', 'name', 'email', 'shop_code']);
 
         return response()->json([
             'managers' => $managers,
@@ -81,18 +81,12 @@ class UserController extends Controller
 
         $shop = Shop::where('uuid', $shopUuid)->firstOrFail();
 
-        $userDepts = User::where(function ($q) use ($shop) {
-                $q->where('shop_code', $shop->code)
-                  ->orWhere('store_code', $shop->code);
-            })
+        $userDepts = User::where('shop_code', $shop->code)
             ->whereNotNull('department')
             ->where('department', '!=', '')
             ->pluck('department');
 
-        $roleDepts = Role::where(function ($q) use ($shop) {
-                $q->where('shop_code', $shop->code)
-                  ->orWhere('store_code', $shop->code);
-            })
+        $roleDepts = Role::where('shop_code', $shop->code)
             ->whereNotNull('department')
             ->where('department', '!=', '')
             ->pluck('department');
@@ -127,11 +121,7 @@ class UserController extends Controller
             }
         }
 
-        $query = User::with('role')
-            ->where(function ($q) use ($shop) {
-                $q->where('shop_code', $shop->code)
-                  ->orWhere('store_code', $shop->code);
-            });
+        $query = User::with('role')->where('shop_code', $shop->code);
 
         // Manager Department Scope check (role department takes precedence over user department)
         $managerDept = $user->role?->department ?? $user->department;

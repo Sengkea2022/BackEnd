@@ -28,10 +28,6 @@ class ProfitController extends ApiResourceController
                 'sometimes',
                 'string',
             ],
-            'store_code' => [
-                'sometimes',
-                'string',
-            ],
             'order_code' => [
                 $record ? 'sometimes' : 'required',
                 'string',

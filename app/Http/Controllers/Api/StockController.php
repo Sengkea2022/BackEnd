@@ -28,10 +28,6 @@ class StockController extends ApiResourceController
                 'sometimes',
                 'string',
             ],
-            'store_code' => [
-                'sometimes',
-                'string',
-            ],
             'product_code' => [
                 $record ? 'sometimes' : 'required',
                 'string',

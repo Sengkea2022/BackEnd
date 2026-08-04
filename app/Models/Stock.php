@@ -21,7 +21,6 @@ class Stock extends Model
         'uuid',
         'code',
         'shop_code',
-        'store_code',
         'product_code',
         'qty',
         'low_stock_alert_qty',

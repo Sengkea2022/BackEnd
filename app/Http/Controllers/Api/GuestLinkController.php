@@ -36,11 +36,14 @@ class GuestLinkController extends ApiResourceController
         $query = parent::query();
         $user = request()?->user();
 
-        $storeCode = request()?->input('filter.store_code');
-        if ($storeCode) {
-            $query->where('store_code', $storeCode);
-        } elseif ($user && $user->role?->slug !== 'superadmin' && !empty($user->store_code) && $user->store_code !== 'N/A') {
-            $query->where('store_code', $user->store_code);
+        $shopCode = request()?->input('filter.shop_code') ?? request()?->input('filter.store_code');
+        if ($shopCode) {
+            $query->where('shop_code', $shopCode);
+        } elseif ($user && $user->role?->slug !== 'superadmin') {
+            $userShopCode = $user->shop_code ?? $user->store_code;
+            if (!empty($userShopCode) && $userShopCode !== 'N/A') {
+                $query->where('shop_code', $userShopCode);
+            }
         }
 
         return $query;
@@ -60,10 +63,10 @@ class GuestLinkController extends ApiResourceController
                 'max:50',
                 Rule::unique('guest_links', 'code')->ignore($record?->id),
             ],
-            'store_code' => [
+            'shop_code' => [
                 $record ? 'sometimes' : 'required',
                 'string',
-                'exists:stores,code',
+                'exists:shops,code',
             ],
             'token' => [
                 $record ? 'sometimes' : 'required',
@@ -94,28 +97,28 @@ class GuestLinkController extends ApiResourceController
 
     public function resolveToken(Request $request, string $identifier): \Illuminate\Http\JsonResponse
     {
-        // 1. Prioritize looking up Store directly by UUID or Code
-        $store = Store::where('uuid', $identifier)
+        // 1. Prioritize looking up Shop directly by UUID or Code
+        $shop = Shop::where('uuid', $identifier)
             ->orWhere('code', $identifier)
             ->first();
 
         $guestLink = null;
 
-        // 2. If store wasn't found directly, try looking up guest_link token
-        if (! $store) {
+        // 2. If shop wasn't found directly, try looking up guest_link token
+        if (! $shop) {
             $guestLink = GuestLink::where('token', $identifier)
                 ->where('is_active', true)
-                ->with(['store'])
+                ->with(['shop', 'store'])
                 ->first();
 
             if ($guestLink) {
-                $store = $guestLink->store;
+                $shop = $guestLink->shop ?? $guestLink->store;
             }
         }
 
-        if (! $store) {
+        if (! $shop) {
             return response()->json([
-                'message' => 'Store menu not found for specified store identifier.',
+                'message' => 'Shop menu not found for specified identifier.',
             ], 404);
         }
 
@@ -125,7 +128,7 @@ class GuestLinkController extends ApiResourceController
             ], 410);
         }
 
-        $products = Product::where('shop_code', $store->code)
+        $products = Product::where('shop_code', $shop->code)
             ->with(['prices', 'category', 'stocks'])
             ->get();
 
@@ -135,7 +138,8 @@ class GuestLinkController extends ApiResourceController
         return response()->json([
             'data' => [
                 'guest_link' => $guestLink,
-                'store' => $store,
+                'shop' => $shop,
+                'store' => $shop,
                 'categories' => $categories,
                 'products' => $products,
             ],
@@ -212,7 +216,6 @@ class GuestLinkController extends ApiResourceController
             'uuid' => (string) Str::uuid(),
             'code' => $orderCode,
             'shop_code' => $shopCode,
-            'store_code' => $shopCode,
             'customer_code' => 'GUEST',
             'guest_link_code' => $deviceToken,
             'currency_code' => $currencyCode,
@@ -271,31 +274,31 @@ class GuestLinkController extends ApiResourceController
     public function getGuestOrderHistory(Request $request): \Illuminate\Http\JsonResponse
     {
         $deviceToken = $request->input('device_token');
-        $storeIdentifier = $request->input('store_uuid') ?? $request->input('store_code') ?? $request->input('store');
+        $shopIdentifier = $request->input('shop_uuid') ?? $request->input('shop_code') ?? $request->input('store_uuid') ?? $request->input('store_code') ?? $request->input('store');
 
         if (! $deviceToken) {
             return response()->json(['message' => 'device_token parameter is required.'], 422);
         }
 
-        if (! $storeIdentifier) {
-            return response()->json(['message' => 'store_uuid or store_code is required.'], 422);
+        if (! $shopIdentifier) {
+            return response()->json(['message' => 'shop_uuid or shop_code is required.'], 422);
         }
 
-        $store = Store::where('uuid', $storeIdentifier)->orWhere('code', $storeIdentifier)->first();
-        $targetStoreCode = $store ? $store->code : $storeIdentifier;
+        $shop = Shop::where('uuid', $shopIdentifier)->orWhere('code', $shopIdentifier)->first();
+        $targetShopCode = $shop ? $shop->code : $shopIdentifier;
 
         $orders = Order::query()
-            ->where(function ($q) use ($targetStoreCode, $storeIdentifier) {
-                $q->where('store_code', $targetStoreCode)
-                  ->orWhereHas('store', function ($sq) use ($targetStoreCode, $storeIdentifier) {
-                      $sq->where('code', $targetStoreCode)
-                        ->orWhere('uuid', $storeIdentifier);
+            ->where(function ($q) use ($targetShopCode, $shopIdentifier) {
+                $q->where('shop_code', $targetShopCode)
+                  ->orWhereHas('shop', function ($sq) use ($targetShopCode, $shopIdentifier) {
+                      $sq->where('code', $targetShopCode)
+                        ->orWhere('uuid', $shopIdentifier);
                   })
-                  ->orWhereHas('items.product', function ($pq) use ($targetStoreCode) {
-                      $pq->where('store_code', $targetStoreCode);
+                  ->orWhereHas('items.product', function ($pq) use ($targetShopCode) {
+                      $pq->where('shop_code', $targetShopCode);
                   });
             })
-            ->with(['store', 'currency', 'items', 'items.product'])
+            ->with(['shop', 'currency', 'items', 'items.product'])
             ->where(function ($q) use ($deviceToken) {
                 $q->where('guest_link_code', $deviceToken)
                   ->orWhere('note', 'LIKE', "%{$deviceToken}%");

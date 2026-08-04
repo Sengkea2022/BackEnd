@@ -21,7 +21,6 @@ class Product extends Model
         'uuid',
         'code',
         'shop_code',
-        'store_code',
         'category_code',
         'product_name',
         'description',

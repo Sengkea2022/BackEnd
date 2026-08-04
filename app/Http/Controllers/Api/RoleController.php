@@ -36,14 +36,11 @@ class RoleController extends Controller
         $query = Role::query()->with('permissions');
         
         if ($shopCode) {
-            $query->where(function ($q) use ($shopCode) {
-                $q->where('shop_code', $shopCode)
-                  ->orWhere('store_code', $shopCode);
-            });
+            $query->where('shop_code', $shopCode);
         } else {
             // If no shop code provided, only show global roles
             if ($request->user() && $request->user()->role?->slug !== 'superadmin') {
-                $query->whereNull('shop_code')->whereNull('store_code');
+                $query->whereNull('shop_code');
             }
         }
         
@@ -85,7 +82,6 @@ class RoleController extends Controller
             'level' => $validated['level'] ?? 3,
             'department' => $validated['department'] ?? null,
             'shop_code' => $shop->code,
-            'store_code' => $shop->code,
         ]);
 
         return response()->json([

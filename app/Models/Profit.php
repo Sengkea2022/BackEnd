@@ -21,7 +21,6 @@ class Profit extends Model
         'uuid',
         'code',
         'shop_code',
-        'store_code',
         'order_code',
         'total_cost',
         'total_revenue',
