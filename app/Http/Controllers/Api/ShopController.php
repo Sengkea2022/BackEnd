@@ -121,14 +121,11 @@ class ShopController extends ApiResourceController
 
     public function store(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
     {
-        if (!in_array($request->user()->role?->slug, ['developer', 'shop-owner'])) {
-            return response()->json(['message' => 'Only admins can create shops.'], 403);
-        }
-
+        $user = $request->user();
         $validated = $request->validate($this->rules());
 
         if (empty($validated['user_code'])) {
-            $validated['user_code'] = $request->user()->code;
+            $validated['user_code'] = $user->code;
         }
 
         $managerId = $validated['manager_id'] ?? null;
@@ -138,6 +135,17 @@ class ShopController extends ApiResourceController
 
         /** @var Shop $shop */
         $shop = Shop::query()->create($validated);
+
+        // Automatically upgrade shop creator to shop-owner role if not developer
+        if ($user && $user->role?->slug !== 'developer') {
+            $shopOwnerRole = \App\Models\Role::query()->where('slug', 'shop-owner')->first();
+            if ($shopOwnerRole) {
+                $user->update([
+                    'role_id' => $shopOwnerRole->id,
+                    'shop_code' => $shop->code,
+                ]);
+            }
+        }
 
         // Generate default shop-specific roles
         \App\Models\Role::create([

@@ -24,10 +24,14 @@ class AuthController extends Controller
             'password' => ['required', 'string', 'min:6', 'confirmed'],
         ]);
 
+        $staffRole = \App\Models\Role::query()->where('slug', 'staff')->first();
+
         $user = User::query()->create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
+            'role_id' => $staffRole?->id,
+            'shop_code' => 'N/A',
         ]);
 
         $this->generateAndSendOtp($user);
