@@ -30,20 +30,20 @@ class DatabaseSeeder extends Seeder
         $deleteProducts = Permission::create(['name' => 'Delete Products', 'slug' => 'delete-products']);
 
         // 2. Seed Roles
-        $superadminRole = Role::create(['name' => 'SuperAdmin', 'slug' => 'superadmin']);
-        $storeOwnerRole = Role::create(['name' => 'Store Owner', 'slug' => 'store-owner']);
-        $managerRole = Role::create(['name' => 'Manager', 'slug' => 'manager']);
-        $staffRole = Role::create(['name' => 'Staff', 'slug' => 'staff']);
+        $developerRole   = Role::create(['name' => 'Developer',  'slug' => 'developer']);
+        $shopOwnerRole   = Role::create(['name' => 'Shop Owner', 'slug' => 'shop-owner']);
+        $managerRole     = Role::create(['name' => 'Manager',    'slug' => 'manager']);
+        $staffRole       = Role::create(['name' => 'Staff',      'slug' => 'staff']);
 
         // 3. Attach Permissions to Roles
-        // SuperAdmin gets everything
-        $superadminRole->permissions()->attach([
+        // Developer gets everything
+        $developerRole->permissions()->attach([
             $viewUsers->id, $editUsers->id, $createUsers->id, $deleteUsers->id,
             $viewProducts->id, $createProducts->id, $editProducts->id, $deleteProducts->id
         ]);
         
-        // Store Owner gets everything
-        $storeOwnerRole->permissions()->attach([
+        // Shop Owner gets everything
+        $shopOwnerRole->permissions()->attach([
             $viewUsers->id, $editUsers->id, $createUsers->id, $deleteUsers->id,
             $viewProducts->id, $createProducts->id, $editProducts->id, $deleteProducts->id
         ]);
@@ -61,19 +61,19 @@ class DatabaseSeeder extends Seeder
 
         // 4. Create Test Users and Assign Roles
         User::factory()->create([
-            'name' => 'Super Admin User',
-            'email' => 'superadmin@example.com',
+            'name'       => 'Developer User',
+            'email'      => 'developer@example.com',
             'department' => 'IT',
-            'position' => Positions::IT_DIRECTOR,
-            'role_id' => $superadminRole->id,
+            'position'   => Positions::IT_DIRECTOR,
+            'role_id'    => $developerRole->id,
         ]);
 
         User::factory()->create([
-            'name' => 'Store Owner',
-            'email' => 'owner@example.com',
+            'name'       => 'Shop Owner',
+            'email'      => 'shopowner@example.com',
             'department' => 'Operations',
-            'position' => Positions::ADMINISTRATOR,
-            'role_id' => $storeOwnerRole->id,
+            'position'   => Positions::ADMINISTRATOR,
+            'role_id'    => $shopOwnerRole->id,
         ]);
 
         User::factory()->create([

@@ -24,7 +24,7 @@ class ProductController extends ApiResourceController
             $request->merge(['filter' => $filter]);
         }
 
-        if ($user && $user->role?->slug !== 'superadmin') {
+        if ($user && $user->role?->slug !== 'developer') {
             $shopCode = $request->input('filter.shop_code');
             if ($shopCode) {
                 $shop = \App\Models\Shop::where('code', $shopCode)->first();

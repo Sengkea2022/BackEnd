@@ -39,7 +39,7 @@ class GuestLinkController extends ApiResourceController
         $shopCode = request()?->input('filter.shop_code') ?? request()?->input('filter.store_code');
         if ($shopCode) {
             $query->where('shop_code', $shopCode);
-        } elseif ($user && $user->role?->slug !== 'superadmin') {
+        } elseif ($user && $user->role?->slug !== 'developer') {
             $userShopCode = $user->shop_code ?? $user->store_code;
             if (!empty($userShopCode) && $userShopCode !== 'N/A') {
                 $query->where('shop_code', $userShopCode);

@@ -17,10 +17,10 @@ class ShopController extends ApiResourceController
         $query = parent::query();
 
         if ($user) {
-            if ($user->role?->slug === 'superadmin') {
+            if ($user->role?->slug === 'developer') {
                 return $query;
             }
-            if ($user->role?->slug === 'store-owner') {
+            if ($user->role?->slug === 'shop-owner') {
                 return $query->where(function ($q) use ($user) {
                     $q->where('user_code', $user->code);
                     if (!empty($user->shop_code) && $user->shop_code !== 'N/A') {
@@ -46,7 +46,7 @@ class ShopController extends ApiResourceController
         $user = request()?->user();
         $shop = $this->resolveRecord($uuid);
 
-        if ($user && $user->role?->slug !== 'superadmin' && $shop->user_code !== $user->code) {
+        if ($user && $user->role?->slug !== 'developer' && $shop->user_code !== $user->code) {
             if (empty($user->shop_code) || $user->shop_code === 'N/A' || $user->shop_code !== $shop->code) {
                 return response()->json(['message' => 'Unauthorized. You are not assigned to this shop.'], 403);
             }
@@ -121,7 +121,7 @@ class ShopController extends ApiResourceController
 
     public function store(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
     {
-        if (!in_array($request->user()->role?->slug, ['superadmin', 'store-owner'])) {
+        if (!in_array($request->user()->role?->slug, ['developer', 'shop-owner'])) {
             return response()->json(['message' => 'Only admins can create shops.'], 403);
         }
 

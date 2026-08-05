@@ -90,7 +90,7 @@ class OrderController extends ApiResourceController
                         ->orWhere('shop_code', $shopIdentifier);
                   });
             });
-        } elseif ($user && !in_array($user->role?->slug, ['superadmin', 'admin'])) {
+        } elseif ($user && !in_array($user->role?->slug, ['developer', 'shop-owner'])) {
             if (!empty($user->shop_code) && $user->shop_code !== 'N/A') {
                 $userShopCode = $user->shop_code;
                 $query->where(function ($q) use ($userShopCode) {

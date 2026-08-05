@@ -39,7 +39,7 @@ class RoleController extends Controller
             $query->where('shop_code', $shopCode);
         } else {
             // If no shop code provided, only show global roles
-            if ($request->user() && $request->user()->role?->slug !== 'superadmin') {
+            if ($request->user() && $request->user()->role?->slug !== 'developer') {
                 $query->whereNull('shop_code');
             }
         }
@@ -70,7 +70,7 @@ class RoleController extends Controller
         $userShopCode = $request->user() ? ($request->user()->shop_code ?? $request->user()->store_code) : null;
         $isShopOwner = $shop->user_code === $request->user()->code;
 
-        if ($request->user()->role?->slug !== 'superadmin' && !$isShopOwner && $shop->code !== $userShopCode) {
+        if ($request->user()->role?->slug !== 'developer' && !$isShopOwner && $shop->code !== $userShopCode) {
             return response()->json(['message' => 'You cannot create roles for other shops'], 403);
         }
 
@@ -93,17 +93,17 @@ class RoleController extends Controller
     {
         $record = $this->resolveRecord($uuid);
         
-        if ($record->slug === 'superadmin' || $record->slug === 'store-owner' || $record->slug === 'shop-owner') {
+        if ($record->slug === 'developer' || $record->slug === 'shop-owner') {
             return response()->json(['message' => 'Cannot modify global roles'], 403);
         }
 
-        if ($request->user() && $request->user()->role_id === $record->id && $request->user()->role?->slug !== 'superadmin') {
+        if ($request->user() && $request->user()->role_id === $record->id && $request->user()->role?->slug !== 'developer') {
             return response()->json(['message' => 'You cannot modify your own role'], 403);
         }
 
         $roleShopCode = $record->shop_code ?? $record->store_code;
 
-        if (is_null($roleShopCode) && $request->user() && $request->user()->role?->slug !== 'superadmin') {
+        if (is_null($roleShopCode) && $request->user() && $request->user()->role?->slug !== 'developer') {
             return response()->json(['message' => 'You cannot modify global roles'], 403);
         }
 
@@ -111,18 +111,18 @@ class RoleController extends Controller
         $isShopOwner = $shop && $shop->user_code === $request->user()->code;
         $userShopCode = $request->user() ? ($request->user()->shop_code ?? $request->user()->store_code) : null;
         
-        if ($roleShopCode !== null && $request->user()->role?->slug !== 'superadmin' && !$isShopOwner && $roleShopCode !== $userShopCode) {
+        if ($roleShopCode !== null && $request->user()->role?->slug !== 'developer' && !$isShopOwner && $roleShopCode !== $userShopCode) {
             return response()->json(['message' => 'You cannot modify roles for other shops'], 403);
         }
 
         $userLevel = $request->user() ? $request->user()->role?->level : 99;
-        if ($request->user()->role?->slug !== 'superadmin' && $record->level <= $userLevel) {
+        if ($request->user()->role?->slug !== 'developer' && $record->level <= $userLevel) {
             return response()->json(['message' => 'You cannot modify a role with a rank equal to or higher than your own.'], 403);
         }
 
         $validated = $request->validate($this->rules($record));
 
-        if (isset($validated['level']) && $request->user()->role?->slug !== 'superadmin' && $validated['level'] <= $userLevel) {
+        if (isset($validated['level']) && $request->user()->role?->slug !== 'developer' && $validated['level'] <= $userLevel) {
             return response()->json(['message' => 'You cannot promote a role to a rank equal to or higher than your own.'], 403);
         }
 
@@ -165,12 +165,12 @@ class RoleController extends Controller
         $isShopOwner = $shop && $shop->user_code === $request->user()->code;
         $userShopCode = $request->user() ? ($request->user()->shop_code ?? $request->user()->store_code) : null;
         
-        if ($request->user()->role?->slug !== 'superadmin' && !$isShopOwner && $roleShopCode !== $userShopCode) {
+        if ($request->user()->role?->slug !== 'developer' && !$isShopOwner && $roleShopCode !== $userShopCode) {
             return response()->json(['message' => 'You cannot delete roles for other shops'], 403);
         }
 
         $userLevel = $request->user() ? $request->user()->role?->level : 99;
-        if ($request->user()->role?->slug !== 'superadmin' && $record->level <= $userLevel) {
+        if ($request->user()->role?->slug !== 'developer' && $record->level <= $userLevel) {
             return response()->json(['message' => 'You cannot delete a role with a rank equal to or higher than your own.'], 403);
         }
 

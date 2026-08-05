@@ -3,29 +3,32 @@
 use App\Models\Role;
 use App\Models\Permission;
 
-// 1. Delete Developer
-Role::where('slug', 'developer')->delete();
-
-// 2. Rename Admin to Store Owner
-Role::where('slug', 'admin')->update([
-    'name' => 'Store Owner',
-    'slug' => 'store-owner'
+// 1. Rename SuperAdmin → Developer
+Role::where('slug', 'superadmin')->update([
+    'name' => 'Developer',
+    'slug' => 'developer',
 ]);
 
-// 3. Create Product Permissions
-$vp = Permission::firstOrCreate(['slug' => 'view-products'], ['name' => 'View Products']);
+// 2. Rename Admin / Store Owner → Shop Owner
+Role::whereIn('slug', ['admin', 'store-owner'])->update([
+    'name' => 'Shop Owner',
+    'slug' => 'shop-owner',
+]);
+
+// 3. Ensure Product Permissions exist
+$vp = Permission::firstOrCreate(['slug' => 'view-products'],   ['name' => 'View Products']);
 $cp = Permission::firstOrCreate(['slug' => 'create-products'], ['name' => 'Create Products']);
-$ep = Permission::firstOrCreate(['slug' => 'edit-products'], ['name' => 'Edit Products']);
+$ep = Permission::firstOrCreate(['slug' => 'edit-products'],   ['name' => 'Edit Products']);
 $dp = Permission::firstOrCreate(['slug' => 'delete-products'], ['name' => 'Delete Products']);
 
-// 4. Assign permissions to SuperAdmin
-$sa = Role::where('slug', 'superadmin')->first();
-if ($sa) {
-    $sa->permissions()->syncWithoutDetaching([$vp->id, $cp->id, $ep->id, $dp->id]);
+// 4. Assign permissions to Developer
+$dev = Role::where('slug', 'developer')->first();
+if ($dev) {
+    $dev->permissions()->syncWithoutDetaching([$vp->id, $cp->id, $ep->id, $dp->id]);
 }
 
-// 5. Assign permissions to Store Owner
-$so = Role::where('slug', 'store-owner')->first();
+// 5. Assign permissions to Shop Owner
+$so = Role::where('slug', 'shop-owner')->first();
 if ($so) {
     $so->permissions()->syncWithoutDetaching([$vp->id, $cp->id, $ep->id, $dp->id]);
 }

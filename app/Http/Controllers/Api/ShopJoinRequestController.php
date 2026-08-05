@@ -15,8 +15,8 @@ class ShopJoinRequestController extends Controller
         $user = $request->user();
         $query = ShopJoinRequest::with(['user', 'shop', 'role']);
 
-        if ($user->role?->slug !== 'superadmin') {
-            if ($user->role?->slug === 'store-owner') {
+        if ($user->role?->slug !== 'developer') {
+            if ($user->role?->slug === 'shop-owner') {
                 $query->whereHas('shop', function ($q) use ($user) {
                     $q->where('user_code', $user->code);
                 });
@@ -82,7 +82,7 @@ class ShopJoinRequestController extends Controller
         $joinRequest = ShopJoinRequest::with('shop')->findOrFail($id);
 
         // Check permission: superadmin, shop owner, or manager of the target shop
-        if ($user->role?->slug !== 'superadmin' && $joinRequest->shop->user_code !== $user->code && $user->shop_code !== $joinRequest->shop->code) {
+        if ($user->role?->slug !== 'developer' && $joinRequest->shop->user_code !== $user->code && $user->shop_code !== $joinRequest->shop->code) {
             return response()->json(['message' => 'Unauthorized to update this request.'], 403);
         }
 
@@ -124,7 +124,7 @@ class ShopJoinRequestController extends Controller
         $joinRequest = ShopJoinRequest::findOrFail($id);
         $user = $request->user();
 
-        if ($user->role?->slug !== 'superadmin' && $joinRequest->user_id !== $user->id && $joinRequest->shop->user_code !== $user->code) {
+        if ($user->role?->slug !== 'developer' && $joinRequest->user_id !== $user->id && $joinRequest->shop->user_code !== $user->code) {
             return response()->json(['message' => 'Unauthorized to delete this request.'], 403);
         }
 

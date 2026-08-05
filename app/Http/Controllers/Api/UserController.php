@@ -57,12 +57,11 @@ class UserController extends Controller
         ]);
     }
 
-    public function getStoreOwners(): JsonResponse
+    public function getShopOwners(): JsonResponse
     {
         $owners = User::query()
             ->whereHas('role', function ($query) {
-                $query->where('slug', 'store-owner')
-                      ->orWhere('slug', 'shop-owner');
+                $query->where('slug', 'shop-owner');
             })
             ->get(['id', 'code', 'name', 'email']);
 
@@ -116,7 +115,7 @@ class UserController extends Controller
         $userShopCode = $user->shop_code ?? $user->store_code;
         
         if (!$isOwner && (!$hasPermission || $userShopCode !== $shop->code)) {
-            if ($userShopCode !== $shop->code && $user->role?->slug !== 'superadmin') {
+            if ($userShopCode !== $shop->code && $user->role?->slug !== 'developer') {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
         }
@@ -126,7 +125,7 @@ class UserController extends Controller
         // Manager Department Scope check (role department takes precedence over user department)
         $managerDept = $user->role?->department ?? $user->department;
 
-        if (!$isOwner && $user->role?->slug !== 'superadmin' && !empty($managerDept)) {
+        if (!$isOwner && $user->role?->slug !== 'developer' && !empty($managerDept)) {
             $query->where('department', $managerDept);
         } elseif (!empty($department)) {
             $query->where('department', $department);
@@ -168,13 +167,13 @@ class UserController extends Controller
         $targetLevel = $targetUser->role ? $targetUser->role->level : 99;
         $userLevel = $user->role ? $user->role->level : 99;
 
-        if (!$isOwner && $user->role?->slug !== 'superadmin' && $targetLevel <= $userLevel) {
+        if (!$isOwner && $user->role?->slug !== 'developer' && $targetLevel <= $userLevel) {
             return response()->json(['message' => 'You cannot modify a user with a rank equal to or higher than your own.'], 403);
         }
 
         // Manager Department Scope check
         $managerDept = $user->role?->department ?? $user->department;
-        if (!$isOwner && $user->role?->slug !== 'superadmin' && !empty($managerDept)) {
+        if (!$isOwner && $user->role?->slug !== 'developer' && !empty($managerDept)) {
             if ($targetUser->department !== $managerDept) {
                 return response()->json(['message' => 'You can only manage staff in your role\'s assigned department (' . $managerDept . ').'], 403);
             }
@@ -186,7 +185,7 @@ class UserController extends Controller
 
         if (array_key_exists('role_id', $validated) && $validated['role_id']) {
             $newRole = Role::find($validated['role_id']);
-            if ($newRole && !$isOwner && $user->role?->slug !== 'superadmin' && $newRole->level <= $userLevel) {
+            if ($newRole && !$isOwner && $user->role?->slug !== 'developer' && $newRole->level <= $userLevel) {
                 return response()->json(['message' => 'You cannot assign a role rank equal to or higher than your own.'], 403);
             }
         }
@@ -236,7 +235,7 @@ class UserController extends Controller
 
         // Manager Department Scope check
         $managerDept = $user->role?->department ?? $user->department;
-        if (!$isOwner && $user->role?->slug !== 'superadmin' && !empty($managerDept)) {
+        if (!$isOwner && $user->role?->slug !== 'developer' && !empty($managerDept)) {
             if ($targetUser->department !== $managerDept) {
                 return response()->json(['message' => 'You can only remove staff in your assigned department (' . $managerDept . ').'], 403);
             }

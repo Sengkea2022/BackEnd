@@ -7,8 +7,7 @@ Route::prefix('user')->group(function () {
     Route::get('/', [UserController::class, 'showCurrent']);
     Route::put('/update', [UserController::class, 'updateCurrent']);
     Route::get('/assignable-personnel', [UserController::class, 'getAssignablePersonnel']);
-    Route::get('/store-owners', [UserController::class, 'getStoreOwners']);
-    Route::get('/shop-owners', [UserController::class, 'getStoreOwners']);
+    Route::get('/shop-owners', [UserController::class, 'getShopOwners']);
     Route::get('/store-departments', [UserController::class, 'getStoreDepartments']);
     Route::get('/shop-departments', [UserController::class, 'getStoreDepartments']);
     Route::get('/store-staff', [UserController::class, 'indexStoreStaff']);
