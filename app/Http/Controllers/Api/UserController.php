@@ -120,7 +120,10 @@ class UserController extends Controller
             }
         }
 
-        $query = User::with('role')->where('shop_code', $shop->code);
+        $query = User::with('role')
+            ->where('shop_code', $shop->code)
+            ->applySearch($request->input('search'))
+            ->applyFilter($request->input('filter'));
 
         // Manager Department Scope check (role department takes precedence over user department)
         $managerDept = $user->role?->department ?? $user->department;

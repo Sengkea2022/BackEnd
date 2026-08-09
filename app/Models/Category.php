@@ -20,4 +20,16 @@ class Category extends Model
         'name',
         'description',
     ];
+
+    protected $appends = ['value', 'label'];
+
+    public function getValueAttribute(): string
+    {
+        return $this->code ?? \Illuminate\Support\Str::slug($this->name, '_');
+    }
+
+    public function getLabelAttribute(): string
+    {
+        return $this->name;
+    }
 }
